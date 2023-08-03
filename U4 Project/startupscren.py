@@ -9,9 +9,10 @@ sWindow = PyUI.loadUi("startingScren.ui")
 sWindow.setWindowTitle("Timetable Creator")
 
 # csv file directory holder variables
-studentCSV = "/Users/jonathan/Downloads/Student Availability Spreadsheet (Form Responses) - Form Responses 1 (2).csv"
+studentCSV = "/Users/jonathan/Downloads/Student Availability Spreadsheet (Form Responses) - Form Responses 1 (4).csv"
 tutorCSV = "/Users/jonathan/Downloads/Tutor Availability Spreadsheet - Availabilities (3).csv"
 
+dampeningfactor = 1 # dampening factor for class creation
 
 def changeInfoLabel(text: str):  # This is much easier to type
     sWindow.infoTextLabel.setText(text)
@@ -47,7 +48,7 @@ def getFileName(type):
             	border-width: 2px;
             }
             """
-                                                            )
+            )
         elif type == "tutor":
             tutorCSV = str(response[0])
             # print(tutorCSV)
@@ -65,16 +66,17 @@ def fileVerification():  # Verify if the csv files are correct
             print("tutor passed")
             verified += 1
     with open(studentCSV, 'r') as file:
+        print('student happening')
         bigFile2 = file.read().splitlines()
         # Check the columns
-        if "Timestamp,Email Address,First Name,Last Name,Year Level" in bigFile2[0]:
+        if "Timestamp,Email Address,First Name,Last Name," in bigFile2[0]:
             for eachStudent in bigFile2:  # Check if any students gave a misinput
                 templist = eachStudent.split(',')
                 emptyChoices = 0
                 for eachOption in templist:
                     if eachOption == "":
                         emptyChoices += 1
-                if emptyChoices >= 3:
+                if emptyChoices >= 4:
                     print("set to zero")
                     # Set verified to 0 if a student has an incorrect choice. This ensures that verified cannot reach 2 and thus is not verified.
                     verified = 0
@@ -98,58 +100,6 @@ yearlevelstats = {}  # statistics of all the year level
 yearlevelclassesneeded = {}  # classes still needed for each year level
 numberOfClasses = 0
 
-
-# create more classes since there aren't enough
-def createOnlineClasses(n: list, daysPossible):
-    subject = n[0]
-    print(subject)
-    print("-"*32)
-    amountneeded = n[1]
-    # first check which tutor has the least number of classes
-    while amountneeded > 0:  # now create the classes until everything has been made
-        leastlist = [None, 10000]
-        for eachtutor in tutorList:  # find the tutor with least number of classes
-            tempnum = len(eachtutor.classes)
-            if tempnum < eachtutor.maximum and eachtutor.subject == subject:
-                if tempnum < leastlist[1]:
-                    leastlist = [eachtutor, tempnum]
-        tutor = tutorList.index(leastlist[0])
-        print(tutor)
-        print("HELLLOOO")
-        for value in range(len(tutorList[tutor].availability)):
-            if tutorList[tutor].availability == 2:
-                temp = [daysPossible[value]]
-                if value % 2 == 0:
-                    temp.append("Early")  # early
-                else:
-                    temp.append("Late")  # late
-                tempnum = howmanyonlineclasses(temp[0], temp[1])
-                classroomList.append(Class(temp[0], temp[1], f"Online{tempnum}"))
-                timetableClassrooms[temp[0]][temp[1]][f"Online{tempnum}"] = len(classroomList) - 1
-                tempindex = timetableClassrooms[temp[0]][temp[1]][f"Online{tempnum}"]
-                classroomList[tempindex].students.append(tutor) # add tutor to the classroom
-                # update Class to tutor
-                tutorList[tutor].classes.append(tempindex)
-                # change availability to 3, meaning there is a class and update the priority
-                tutorList[tutor].availability[value] = 3
-                tutorList[tutor].updatepriority()
-                classroomList[tempindex].classtype = "Online"
-                tempyearlevel = defineyearlevel(tutor)
-                # print(classroomList)
-                # print(tempyearlevel)
-                classroomList[tempindex].subject = tutorList[tutor].subject
-                # change the name of the class according to the year level and subject
-                if tutorList[tutor].subject == "Maths":
-                    classroomList[tempindex].name += f"MAT {tempyearlevel}{alphabet[mathsyearlevelnaming[tempyearlevel]]}"
-                    classroomList[tempindex].yearlevel = int(tempyearlevel)
-                    mathsyearlevelnaming[tempyearlevel] += 1
-                elif tutor.subject == "English":
-                    classroomList[tempindex].name += f"ENG {tempyearlevel}{alphabet[englishyearlevelnaming[tempyearlevel]]}"
-                    classroomList[tempindex].yearlevel = int(tempyearlevel)
-                    englishyearlevelnaming[tempyearlevel] += 1
-                amountneeded -= 1
-                break
-
 def fixtemp(n: list):
     templist = []
     for item in range(len(n)):
@@ -171,28 +121,13 @@ def howmanyonlineclasses(day: str, session: str):
     return count
 
 def defineyearlevel(tutor: int):
-    print(tutor)
+    classesNeeded()
     possibleyearlevels = tutorList[tutor].yearlevels
     mostneeded = ["0", 0]
     for eachyear in yearlevelclassesneeded.keys():
         if yearlevelclassesneeded[eachyear] > mostneeded[1] and eachyear in possibleyearlevels:
             mostneeded = [eachyear, yearlevelclassesneeded[eachyear]]
     return mostneeded[0]
-
-
-def enoughClassesCheck():  # check if there are enough classes for all subjects
-    fixingList = []
-    for eachsubject in ["Maths", "English"]:
-        num = 0
-        for eachclass in classroomList:
-            if eachclass.subject == eachsubject:
-                num += 1
-        if num >= numberOfClasses:
-            pass
-        else:
-            fixingList.append([eachsubject, num - numberOfClasses])
-    return fixingList
-
 
 def priorityCheck():  # returns False if all tutors have a priority of 0
     for tutor in tutorList:
@@ -203,7 +138,6 @@ def priorityCheck():  # returns False if all tutors have a priority of 0
         else:
             return True
     return False
-
 
 def yearLevelStats():  # create statistics on the year level
     print("bonjourrr")
@@ -223,16 +157,32 @@ def yearLevelStats():  # create statistics on the year level
     classesNeeded()
     return num
 
-
 def classesNeeded():
     global yearlevelclassesneeded
     for eachkey in yearlevelstats.keys():
         yearlevelclassesneeded[eachkey] = ceil(yearlevelstats[eachkey] / 5)
 
+def checkclasses(yearlevel: int):
+    print(yearlevelclassesneeded[str(yearlevel)] * dampeningfactor)
+    tempnum = ceil(yearlevelclassesneeded[str(yearlevel)] * dampeningfactor)
+    #print("Tempnum: " + str(tempnum))
+    dict1 = {
+        "Maths": tempnum,
+        "English": tempnum
+    }
+    for eachclass in classroomList:
+        #print(f'Value of {eachclass.yearlevel} with type of {type(eachclass.yearlevel)}')
+        #print(f'{yearlevel} and {type(yearlevel)}')
+        if eachclass.yearlevel == yearlevel:
+            dict1[eachclass.subject] -= 1
+    print(dict1)
+    for i in dict1.keys():
+        if dict1[i] > 0:
+            return True
+    return False
 
 class Student:
-    daylist = ["Tuesday", "Wednesday", "Thursday",
-               "Friday", "Saturday"]  # list of possible days
+    daylist = ["Tuesday", "Wednesday", "Thursday","Friday", "Saturday"]  # list of possible days
 
     def __init__(self, email: str, firstname: str, lastname: str, yearLevel: str, place: str, Tuesday: int, Wednesday: int, Thursday: int, Friday: int, Saturday: int):
         self.firstname = firstname
@@ -242,19 +192,20 @@ class Student:
         self.yearLevel = str(yearLevel[5:])
         self.place = place
         self.lastnameinitial = 0
-        templist = [Tuesday, Wednesday, Thursday, Friday, Saturday]
+        self.templist = [Tuesday, Wednesday, Thursday, Friday, Saturday]
         self.availability = []
         self.subject = ""
-        for i in range(len(templist)):
-            if templist[i] == 0:
-                pass
-            elif templist[i] == 1:
-                self.availability.append(f'E{Student.daylist[i]}')
-            elif templist[i] == 2:
-                self.availability.append(f'L{Student.daylist[i]}')
-            else:
-                self.availability.append(f'E{Student.daylist[i]}')
-                self.availability.append(f'L{Student.daylist[i]}')
+        for i in range(len(self.templist)):
+            match self.templist[i]:
+                case 0:
+                    pass
+                case 1:
+                    self.availability.append(f'E{Student.daylist[i]}')
+                case 2:
+                    self.availability.append(f'L{Student.daylist[i]}')
+                case _:
+                    self.availability.append(f'E{Student.daylist[i]}')
+                    self.availability.append(f'L{Student.daylist[i]}')
         self.originalavailability = list(self.availability)
         print(self.availability)
         self.classes = {
@@ -265,6 +216,7 @@ class Student:
         self.switchattempts = 0
 
     def updateName(self):
+        self.lastnameinitial += 1
         self.name += self.lastname[self.lastnameinitial]
 
     def updatePriority(self):
@@ -296,6 +248,7 @@ class Tutor:
                 "\"", '')
         self.availability = listinformation
         self.lastnameinitial = 0
+        self.originalavailability = list(listinformation)
         self.maximum = int(maximum)
         self.classplace = place
         # change all missing inputs to 0
@@ -327,15 +280,17 @@ class Class:  # create class for Classes
         self.classroom = classroom  # which classroom is it in
         self.subject = ""  # subject
         self.students = []  # list of tutor + students
-        self.name = "SEL "  # naming for later
+        self.name = "SEL"  # naming for later
         self.yearlevel = 0  # year level
         self.classtype = ""  # online or offline
 
-    def removeStudent(self, student: object):
-        for i in range(len(self.students)):
-            if self.students[i] == student:
-                self.students.remove(i)
-                return
+    def removeStudent(self, student: int): # Remove a student
+        print(f"The length of this thing is {len(self.students)}")
+        print(bool(student in self.students[1:]))
+        for students in range(len(self.students)):
+            if self.students[students] == student and students != 0:
+                self.students.pop(students)
+                return # clear
 
 sWindow.studentAvailabilityButton.clicked.connect(
     lambda: getFileName("student"))

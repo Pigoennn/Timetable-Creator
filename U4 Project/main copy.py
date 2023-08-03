@@ -9,7 +9,7 @@ from startupscren import *
 sWindow.CreateTimetableButton.clicked.connect(lambda: programBegin())
 
 def programBegin(): #Begin the creation process
-    global timetable, numberOfStudents, studentList, availableClassrooms, timetableClassrooms, classroomList, numberOfClasses
+    global timetable, numberOfStudents, studentList, availableClassrooms, timetableClassrooms, classroomList, numberOfClasses, mathsyearlevelnaming, englishyearlevelnaming
     if not fileVerification():  #Check the files first if they are correct
         return changeInfoLabel("Please select the correct .csv sheet") #stop function if not verified
     #begin class creating process
@@ -46,6 +46,8 @@ def programBegin(): #Begin the creation process
                 if eachStat in range(5):
                     pass
                 else:
+                    #print("-"*32)
+                    #print(temp[eachStat])
                     if "Early" in temp[eachStat] and "Late" in temp[eachStat]:
                         temp[eachStat] = 3
                     elif "Early" in temp[eachStat]:
@@ -54,7 +56,10 @@ def programBegin(): #Begin the creation process
                         temp[eachStat] = 2
                     else:
                         temp[eachStat] = 0
+            #print("Printing temp")
+            #print(temp)
             studentList.append(Student(temp[0],temp[1],temp[2],temp[3],temp[4],temp[5],temp[6],temp[7],temp[8],temp[9])) #Create a Class for each student
+            #print(studentList)
     # check for duplicates
     duplicate = True
     while duplicate == True:  # run a while loop to remove all duplicate names
@@ -119,77 +124,94 @@ def programBegin(): #Begin the creation process
     #print(daysPossible)
     #print(classroomList)
     # check if any classroom is available before creating then add tutor to it and then update tutor
-    allyearlevels = list(yearlevelstats.keys())
-    tempyearlevel = allyearlevels.pop(0)
-    currentpriority = [2]
-    attemptcounter = 0
-    print(allyearlevels)
-    print("0"*32)
-    while checkclasses(int(tempyearlevel)):
-        # Create a class using createClass function
-        # First we find a tutor that has the year level and is not maxed out on classes
-        attemptcounter += 1
+    while priorityCheck():
         for tutor in tutorList:
-            print(f'{tempyearlevel} vs {tutor.yearlevels}')
-            if tempyearlevel in tutor.yearlevels and len(tutor.classes) < tutor.maximum:
-                print("happens")
-                for value in range(len(tutor.availability)): # Check if the tutor is available
-                    if tutor.availability[value] in currentpriority:
-                        day = daysPossible[value] # which day is it
-                        if value % 2 == 0: # is it early or late session
-                            day = f'E{day}'
-                        else:
-                            day = f'L{day}'
-                        print("creating")
-                        createclass(tutorList.index(tutor), day, tutor.subject, tempyearlevel) # creates the class
-                        break
-        if not(checkclasses(int(tempyearlevel))):
-            try:
-                print("Switching")
-                tempyearlevel = allyearlevels.pop(0)
-            except IndexError:
-                print("you done")
-                pass
-        if attemptcounter == 5:
-            currentpriority.append(1)
-            
-    ### CREATE CLASSROOM SPAM WHERE YOU CREATE RANDOM CLASSROOMS FOR NO REASON
-    if not(1 in currentpriority):
-        currentpriority.append(1)
-    reallycoolnumber = ceil(numberOfStudents / 50)
-    currentsubject = ["Maths", "English"]
-    for i in range(reallycoolnumber):
-        for tutor in tutorList:
-            if len(tutor.classes) < tutor.maximum and tutor.subject == currentsubject[0] and (2 in tutor.availability or 1 in tutor.availability):
+            if (tutor.priority) and len(tutor.classes) < tutor.maximum:
                 for value in range(len(tutor.availability)):
-                    if tutor.availability[value] in currentpriority:
-                        day = daysPossible[value]  # which day is it
-                        if value % 2 == 0:  # is it early or late session
-                            day = f'E{day}'
+                    if tutor.availability[value] == 0 or tutor.availability[value] == 3:
+                        pass
+                    elif tutor.availability[value] == 2:
+                        temp = [daysPossible[value]]
+                        #add a second value to the list, indicating whether it is the early or late session
+                        if value % 2 == 0:
+                            temp.append("Early") #early
                         else:
-                            day = f'L{day}'
-                        createclass(tutorList.index(tutor), day, tutor.subject, tutor.availability[0])
-                        currentsubject.append(currentsubject.pop(0)) # Recycle the first subject to the back
+                            temp.append("Late") #late
+                        if not(tutor.classplace == "Online"):
+                            for eachroom in timetableClassrooms[temp[0]][temp[1]].keys(): #check for empty classroom and then create a class in it
+                                if len(classroomList[timetableClassrooms[temp[0]][temp[1]][eachroom]].students) == 0:
+                                    #create a Class
+                                    tempindex = timetableClassrooms[temp[0]][temp[1]][eachroom]
+                                    classroomList[tempindex].students.append(tutorList.index(tutor))  # add tutor to the classroom
+                                    tutor.classes.append(tempindex) #update Class to tutor
+                                    tutor.availability[value] = 3
+                                    tutor.updatepriority() #change availability to 3, meaning there is a class and update the priority
+                                    classroomList[tempindex].classtype = "In-Person"
+                                    tempyearlevel = defineyearlevel(tutorList.index(tutor))
+                                    enoughClassesCheck()
+                                    #print(classroomList)
+                                    #print(tempyearlevel)
+                                    classroomList[tempindex].subject = tutor.subject
+                                    if tutor.subject == "Maths":
+                                        #classroomList[tempindex].name += f"MAT {tempyearlevel}{alphabet[mathsyearlevelnaming[tempyearlevel]]}"
+                                        classroomList[tempindex].yearlevel = int(tempyearlevel)
+                                        #mathsyearlevelnaming[tempyearlevel] += 1
+                                    elif tutor.subject == "English":
+                                        #classroomList[tempindex].name += f"ENG {tempyearlevel}{alphabet[englishyearlevelnaming[tempyearlevel]]}"
+                                        classroomList[tempindex].yearlevel = int(tempyearlevel)
+                                        #englishyearlevelnaming[tempyearlevel] += 1
+                                    
+                                    break
+                        else:
+                            tempnum = howmanyonlineclasses(temp[0], temp[1])
+                            classroomList.append(Class(temp[0], temp[1], f"Online{tempnum}"))
+                            timetableClassrooms[temp[0]][temp[1]][f"Online{tempnum}"] = len(classroomList) - 1
+                            tempindex = len(classroomList) - 1
+                            classroomList[tempindex].students.append(tutorList.index(tutor))  # add tutor to the classroom
+                            # update Class to tutor
+                            tutor.classes.append(tempindex)
+                            tutor.availability[value] = 3
+                            # change availability to 3, meaning there is a class and update the priority
+                            tutor.updatepriority()
+                            classroomList[tempindex].classtype = "Online"
+                            tempyearlevel = defineyearlevel(tutorList.index(tutor))
+                            #print(classroomList)
+                            print(tempyearlevel)
+                            classroomList[tempindex].subject = tutor.subject
+                            match tutor.subject:
+                                case "Maths":
+                                    #classroomList[tempindex].name += f"MAT {tempyearlevel}{alphabet[mathsyearlevelnaming[tempyearlevel]]}"
+                                    classroomList[tempindex].yearlevel = int(tempyearlevel)
+                                    #mathsyearlevelnaming[tempyearlevel] += 1
+                                case "English":
+                                    #classroomList[tempindex].name += f"ENG {tempyearlevel}{alphabet[englishyearlevelnaming[tempyearlevel]]}"
+                                    classroomList[tempindex].yearlevel = int(tempyearlevel)
+                                    #englishyearlevelnaming[tempyearlevel] += 1
+                            break
                         break
+                
     #print(timetableClassrooms)
     for i in tutorList:
         print(f'{i.name}: {i.availability}')
         print(f'{i.name}: {[classroomList[j].name for j in i.classes]}')
 
     for i in classroomList:
-        if not len(i.students) < 1:
+        if not len(i.students) <= 1:
             print(f'{classroomList.index(i)} has a subject of {i.subject}')
-    print("WE'RE HALFWAY THEREEE")
+
     #check number of classes, if not enough for each year level then add more
+    temp = enoughClassesCheck()
+    while len(temp) > 0:
+        createOnlineClasses(temp.pop(0),daysPossible)
     switchScreens()
 
 ###-------------------------------------------------------------------------------
 #Loading Screen
+
 lWindow = PyUI.loadUi("loadingScren.ui")
 lWindow.setWindowTitle("Creating Classes...")
 
 lWindow.progressBar.setValue(0)
-completelydoomed = []
 
 def switchScreens(): #switch screens
     sWindow.close()
@@ -202,7 +224,7 @@ def startAlgorithm(): #start adding students to class
         for student in range(len(studentList)):
             if studentList[student].classes[mainsubject] == None:
                 #print(studentList[student].name)
-                if modifiedGaleShapley(student,mainsubject):
+                if checkPreference(student,mainsubject):
                     pass
                 else:
                     # occurs if no class available
@@ -212,153 +234,63 @@ def startAlgorithm(): #start adding students to class
                     # REDO THIS WHOLE SECTION
                     print("Failed")
                     ### WORK ON THIS BIT HELLO RIGHT HERE PLEASE WORK HERE PLEASE WORK HERE PLEASE WORK HERE PLEASE WORK HERE
-                    if len(studentList[student].availability) == 0:
-                        studentList[student].classes[mainsubject] = "None"
             else:
                 pass
         if checkstudents(mainsubject):
+            #for i in studentList:
+            #    print(f'{i.name}: {i.classes}')
             if mainsubject == "Maths":
                 mainsubject = "English"
                 for student in range(len(studentList)):
                     studentList[student].switching()
+    #just some testing
+    for i in studentList:
+        print(f'{i.name}: {i.classes}')
+    print(doomedstudentlist)
+    print("LETS GO WE DONE")
+    for i in [10,25,21,45,30,26,57]:
+        print(classroomList[i].name)
+        print(classroomList[i].subject)
+        print(tutorList[classroomList[i].students[0]].name)
+    for i in tutorList:
+        if i.name == "Testing O":
+            print(i.availability)
+            print(i.classes)
+        elif i.name == "Testing F":
+            print(i.availability)
+            print(i.classes)
+    for i in studentList:
+        if i.name == "Cheese H":
+            print(i.availability)
+    for i in classroomList:
+        print(f'{i.name}: {i.yearlevel}')
+    print(timetableClassrooms)
     # Now that most students are complete, remove all classes with only one teacher and attempt to create
     endOfAlgorithm()
 
 def endOfAlgorithm():
-    global classroomList, tutorList, completelydoomed
+    global classroomList, tutorList
     # First start by removing all classes with one teacher only
     for eachclass in (classroomList):
         if len(eachclass.students) == 1:
             classroomDelete(classroomList.index(eachclass))
     # Begin back up classes creation algorithm
-    contingencyplan()
-    statuscheck()
-    # now that all classes have been made, begin naming them
-    classnaming()
-    # Big check to make sure that no one is somehow in the wrong class
-    for i in studentList:
-        print(f'{i.name}, Year {i.yearLevel}: {i.classes}')
-    '''for eachclass in classroomList:
-        if len(eachclass.students) > 1:
-            print(len(eachclass.students))
-            if len(eachclass.students ) > 6:
-                print(f'{eachclass.day}, {eachclass.time}, {eachclass.yearlevel}')
-                for i in eachclass.students:
-                    print(studentList[i].name)
-                print("-" * 32)
-            if eachclass.subject != tutorList[eachclass.students[0]].subject:
-                print("TEACHER ERROR")
-            for student in eachclass.students[1:]:
-                if int(studentList[student].yearLevel) != eachclass.yearlevel:
-                    print(eachclass.yearlevel)
-                    print("STUDENT ERROR")'''
-    csvoutput()
-    print("HEHEHEHE FINISHED")
+    backup()
 
-def csvoutput(): # This will be the output for the csv
-    # Reset the csv file
-    with open("timetable.csv", "w") as deletingfile:
-        deletingfile.close()
-    # Begin creating the csv file
-    
-    with open("timetable.csv","w") as file:
-        pass
-    pass 
-
-def classnaming():
-    global englishyearlevelnaming, mathsyearlevelnaming, classroomList
-    # Go through every available class and name them
-    for classroom in classroomList:
-        if len(classroom.students) >= 2:
-            yearlevel = str(classroom.yearlevel)
-            match classroom.subject:
-                case "Maths":
-                    subjectname = ['MAT']
-                    subjectname.append(mathsyearlevelnaming[yearlevel])
-                    mathsyearlevelnaming[yearlevel] += 1
-                case "English":
-                    subjectname = ['ENG']
-                    subjectname.append(englishyearlevelnaming[yearlevel])
-                    englishyearlevelnaming[yearlevel] += 1
-            classroom.name = f'{classroom.name} {subjectname[0]} {yearlevel}{alphabet[subjectname[1]]}'
-            print("working")
-        elif len(classroom.students) == 1:
-            classroomDelete(classroomList.index(classroom))
-    for classroom in classroomList:
-        if len(classroom.students) >= 1:
-            print("-" * 48)
-            print(classroom.name)
-            first = True
-            for i in classroom.students:
-                if first:
-                    print(f'--> {studentList[i].name}')
-                    first = False
-                else:
-                    print(f'-> {studentList[i].name}')   
-
-def backup(unavailable: dict):
+def backup():
     global doomedstudentlist
-    doomedstudentlist = []
     for student in range(len(studentList)): # Find all students without a class
         for subject in studentList[student].classes.keys():
             if studentList[student].classes[subject] == "None" and not(student in doomedstudentlist):
                 doomedstudentlist.append(student)
-    return whatclasses(unavailable)
-
-def contingencyplan():
-    asdfdict = {}
-    for i in yearlevelstats.keys():
-        asdfdict[i] = {
-            "Maths": [],
-            "English": []
-        }
-    dictionary = backup(asdfdict)
-    #for i in dictionary.keys():
-    #    print(type(dictionary[i]))
-    unavailablesessions = {} # some sessions may not be possible. this dictionary will hold the data
-    for yearlevel in dictionary.keys(): 
-        unavailablesessions[yearlevel] = {}
-        for subject in dictionary[yearlevel].keys():
-            unavailablesessions[yearlevel][subject] = []
-    # now that we have the most common times needed, take the most popular time and find a tutor with an availability for that time
-    # if no tutor has an availability for that time, remove it
-    while dictionary != {}:
-        statuscheck()
-        #print("Da Dictionary: ")
-        #print(dictionary)
-        classfocus = findMax(dictionary) # returns [session, subject, yearlevel]
-        #print(classfocus)
-        # now find which tutor has an availability for this time
-        temptutorlist = []
-        num = Tutor.daylist.index(classfocus[0][1:]) * 2
-        if classfocus[0][0] == "L":
-            num += 1
-        # find all tutors with this availability and subject and year level and not maxed on classes
-        for tutor in range(len(tutorList)):
-            if tutorList[tutor].availability[num] in [1, 2] and tutorList[tutor].subject == classfocus[1] and classfocus[2] in tutorList[tutor].yearlevels and len(tutorList[tutor].classes) < tutorList[tutor].maximum:
-                temptutorlist.append(tutor)
-        if len(temptutorlist) == 0:
-            unavailablesessions[classfocus[2]][classfocus[1]].append(classfocus[0])
-        else:
-            # find tutor with least amount of classes
-            min = [None, 10000]
-            for eachtutor in temptutorlist:
-                tempamount = len(tutorList[eachtutor].classes)
-                # find least amount of classes
-                if tempamount < min[1]:
-                    min = [eachtutor, tempamount]
-            # create a class with the tutor
-            newclass = createclass(min[0], classfocus[0], classfocus[1], classfocus[2]) # tutor, session, subject, year level
-            print(len(classroomList[newclass].students))
-            appendingstudentlist = newkids(newclass)
-            for eachstudent in appendingstudentlist:
-                addstudent(newclass, eachstudent) # clear
-        dictionary = backup(unavailablesessions)
-    # What to do with doomed students???
-    # Also ensure the students dont already have a class at that time when creating a new class for them
+    dictionary = whatclasses(doomedstudentlist, [])
+    focusyearlevel = dictionary.keys()[0]
+    number = dictionary.values()[0]
+    dictionary.pop(focusyearlevel)
+    # Create new classes for students
+    # REWORK THE CLASS CREATING SECTION
 
 def classroomDelete(classroom: int):
-    global classroomList
     # Remove the classroom to default settings and remove it from the tutor
     temptutor = classroomList[classroom].students.pop(0) # remove the tutor who is the only student
     tutorList[temptutor].classes.pop(tutorList[temptutor].classes.index(classroom)) # remove the class from the tutor
@@ -391,34 +323,30 @@ def statuscheck():
 badstudentlist = []
 doomedstudentlist = []
 
-def modifiedGaleShapley(student: int, subject: str):
+def checkPreference(student: int, subject: str):
     global badstudentlist
-    print("-"*48)
-    print(f'Student: {studentList[student].name}')
-    print(f'Number: {student}')
-    print(subject)
     day = studentList[student].availability.pop(0) # get the next availability of the student
     #print(day)
     studentList[student].updatePriority() # update the student's priority
     session = earlyorlate(day[0]) # check whether it's an early or late session
     #print(session)
     nlist = [] # list of all possible classes that fit the conditions
-    #print("AND SO IT BEGINS")
-    #print("-*"*24)
     #print(timetableClassrooms[day[1:]][session])
     #print(f'Year Level: {studentList[student].yearLevel}')
     #print(f'Subject: {subject}')
-    #print(f'Available Sessions: {len(timetableClassrooms[day[1:]][session].keys())}')
+    #print(len(timetableClassrooms[day[1:]][session].keys()))
     for classroom in timetableClassrooms[day[1:]][session].keys(): # check of all the classrooms
-        #print("-" * 24)
-        #print(f'Session Year Level: {classroomList[timetableClassrooms[day[1:]][session][classroom]].yearlevel}')
-        #print(f'Session Subject: {classroomList[timetableClassrooms[day[1:]][session][classroom]].subject}')
+        #print("Details:")
+        #print(classroomList[timetableClassrooms[day[1:]][session][classroom]].name)
+        #print(classroomList[timetableClassrooms[day[1:]][session][classroom]].yearlevel)
+        #print(classroomList[timetableClassrooms[day[1:]][session][classroom]].subject)
         if classroomList[timetableClassrooms[day[1:]][session][classroom]].yearlevel == int(studentList[student].yearLevel) and classroomList[timetableClassrooms[day[1:]][session][classroom]].subject == subject:
             nlist.append(timetableClassrooms[day[1:]][session][classroom])
     ###MAKE CODE IF NO CLASSES FIT THE STUDENT
     #CHECK IF STUDENT HAS NO OTHER CLASSES LEFT (DO THE SWITCHEROO IF ONE LEFT OR CREATE NEW CLASS)
     #IF NOT, JUST SKIP THE CLASS AND RETURN
-    print(f'Possible Classes: {nlist}')
+    #print(nlist)
+    #print("hiii")
     if len(nlist) == 0:
         if studentList[student].priority == 0:
             if attemptswitch(student, session, subject):
@@ -428,7 +356,7 @@ def modifiedGaleShapley(student: int, subject: str):
                 studentList[student].classes[subject] = "None"
         else:
             return False
-    for eachclass in nlist: # check if any of the classes have an open seat
+    for eachclass in nlist: #check if any of the classes have an open seat
         if len(classroomList[eachclass].students) < 6:
             return addstudent(eachclass, student)
     if not(studentshifting(nlist,student)): # add a new student to the class and update all details
@@ -458,135 +386,118 @@ def earlyorlate(n: str): # quick function to see if early or late session
         case "L":
             return "Late"
 
-def newkids(classroom: int): # function finds the lowest priority students and returns them
+def noclassexist(listoffailedstudents: list, subject: str): #contingency plan. what happens when the students have no classes that exist
+    unavailablesessions = []
+    tempdict = whatclasses(listoffailedstudents, unavailablesessions)
+    # now that we have the most common times needed, take the most popular time and find a tutor with an availability for that time
+    # if no tutor has an availability for that time, remove it
+    while tempdict != {}:
+        classfocus = findMax(tempdict)
+        # now find which tutor has an availability for this time
+        temptutorlist = []
+        num = Tutor.daylist.index(classfocus[0][1:]) * 2
+        if classfocus[0][0] == "L":
+            num += 1
+        for tutor in range(len(tutorList)): # find all tutors with this availability and subject and year level
+            if tutorList[tutor].availability[num] in [1,2] and tutorList[tutor].subject == subject and classfocus[1] in tutorList[tutor].yearlevels:
+                temptutorlist.append(tutor)
+        if len(temptutorlist) == 0:
+            unavailablesessions.append(classfocus)
+        else:
+            # find tutor with least amount of classes
+            min = [None,10000]
+            for eachtutor in temptutorlist:
+                tempamount = len(tutorList[eachtutor].classes)
+                if tempamount < min[1] and tempamount < tutorList[eachtutor].maximum: # find minimum and check that their classes does not go above maximum
+                    min = [eachtutor,tempamount]
+            newclass = createclass(min[0], classfocus[0], subject, classfocus[1]) # create a class with the tutor
+            appendingstudentlist = newkids(newclass, listoffailedstudents)
+            for eachstudent in appendingstudentlist:
+                addstudent(newclass, eachstudent)
+                listoffailedstudents.pop(listoffailedstudents.index(eachstudent))
+        tempdict = whatclasses(listoffailedstudents, unavailablesessions)
+    ### What to do with doomed students???
+    ### Also ensure the students dont already have a class at that time when creating a new class for them
+
+def newkids(classroom: int, failedstudents: list): # function finds the lowest priority students and returns them
     session = f'{classroomList[classroom].time[0]}{classroomList[classroom].day}' # define the two variables for ease
     theyearlevel = classroomList[classroom].yearlevel
     potentiallist = [] # list of all potential students
-    for student in doomedstudentlist:
+    for student in failedstudents:
         # check if the session is in the availability and matching year level and does not have a class at this time
         if session in studentList[student].originalavailability and int(studentList[student].yearLevel) == theyearlevel and checknotsame(classroom, student):
             potentiallist.append(student)
     return bubblesort5(potentiallist)
 
-def bubblesort5(nlist: list): # do bubble sort ascending but only for the first 5 or less indexes
+def bubblesort5(nlist: list): # do bubble sort ascending but only for the first 5 indexes
     for i in range(len(nlist)):
         if i == 5:
-            return nlist[:5] # return only the first 5 indexes of the list
+            return nlist[0:6] # return only the first 5 indexes of the list
         min = len(studentList[nlist[i]].originalavailability)
-        for j in range(i + 1,len(nlist)):
+        for j in range(len(nlist[i:])):
             if len(studentList[nlist[j]].originalavailability) < min:
                 min = len(studentList[nlist[j]].originalavailability)
                 nlist[i], nlist[j] = nlist[j], nlist[i]
-    return nlist # occurs if there are less than 5 students possible
 
-def whatclasses(unavailable: dict):
-    global doomedstudentlist
+def whatclasses(list1: list, bannedclasses: list):
     dictionary = {}
     for i in yearlevelstats.keys():
-        dictionary[i] = {
-            "Maths": {},
-            "English": {}
-        }
-    for student in doomedstudentlist:  # find out most common class needed and make them
-        missingsubject = [i for i in studentList[student].classes.keys() if studentList[student].classes[i] == "None"]
-        #print(missingsubject)
+        dictionary[i] = {}
+    for student in list1:  # find out most common class needed and make them
         for availability in studentList[student].originalavailability:
-            # above if statement checks that the availability is not in the banned lists
-            try:
-                for subject in missingsubject:
-                    dictionary[studentList[student].yearLevel][subject][availability] += 1
-            except KeyError:
-                for subject in missingsubject:
-                    if not(availability in unavailable[studentList[student].yearLevel][subject]):
-                        dictionary[studentList[student].yearLevel][subject][availability] = 1
-            #print("_-_-"*32)
-            #print(dictionary)
-    # Clean the dictionary
-    ultimatedestroylist = []
-    for yearlevel in dictionary.keys():
-        destroylist = []
-        for subject in dictionary[yearlevel].keys():
-            if dictionary[yearlevel][subject] == {}:
-                destroylist.append(subject)
-        for eachsubject in destroylist:
-            dictionary[yearlevel].pop(eachsubject)
-        if dictionary[yearlevel] == {}:
-            ultimatedestroylist.append(yearlevel)
-    for destruction in ultimatedestroylist:
-        dictionary.pop(destruction)
+            if not(studentList[student].yearLevel in [j[0] for j in bannedclasses] and availability in [i[0] for i in bannedclasses]) :
+                # above if statement checks that the availability is not in the banned lists
+                dictionary[studentList[student].yearLevel][availability] += 1
+                print("_-_-"*32)
+                print(dictionary)
     return dictionary
 
 def createclass(tutor: int, session: str, thesubject: str, yearlevel: int): # create a brand new class
-    print(session)
     time = earlyorlate(session[0])
-    if tutorList[tutor].classplace != "Online":
-        for eachroom in timetableClassrooms[session[1:]][time].keys(): # find an available classroom
-            num = timetableClassrooms[session[1:]][time][eachroom]
-            if len(classroomList[num].students) == 0:
-                classroomList[num].students.append(tutor) # Add the tutor to the class
-                tutorList[tutor].classes.append(num)    # Add the class to the tutor
-                classroomList[num].subject = thesubject     # Set the subject
-                classroomList[num].yearlevel = int(yearlevel)    # Set the year level 
-                classroomList[num].classtype = "In-Person"
-                # Set the availability as 3
-                tutorList[tutor].availability[whichavailabilityindex(session)] = 3
-                return num
+    for eachroom in timetableClassrooms[session[1:]][time].keys(): # find an available classroom
+        num = timetableClassrooms[session[1:]][time][eachroom]
+        if len(classroomList[num].students) == 0:
+            classroomList[num].students.append(tutor)
+            tutorList[tutor].classes.append(num)
+            classroomList[num].subject = thesubject
+            classroomList[num].yearlevel = yearlevel
+            return num
     # create online class if not returned
-    tempnum = howmanyonlineclasses(session[1:],time)
+    tempnum = howmanyonlineclasses(session[1:],[time])
     classroomList.append(Class(session[1:],time,f'Online{tempnum}'))
-    num = len(classroomList) - 1
-    timetableClassrooms[session[1:]][time][f'Online{tempnum}'] = num
-    classroomList[num].students.append(tutor)
-    tutorList[tutor].classes.append(num)
-    classroomList[num].subject = thesubject
-    classroomList[num].yearlevel = int(yearlevel)
-    classroomList[num].classtype = "Online"
-    return num
-
-def whichavailabilityindex(session: str):
-    num = Tutor.daylist.index(session[1:]) * 2
-    match session[0]:
-        case "E":
-            num += 0
-        case "L":
-            num += 1
-    return num
+    timetableClassrooms[session[1:]][time][f'Online{tempnum}'] = len(classroomList) - 1
+    classroomList[tempnum].students.append(tutor)
+    tutorList[tutor].classes.append(tempnum)
+    classroomList[tempnum].subject = thesubject
+    classroomList[tempnum].yearlevel = yearlevel
+    return tempnum
 
 def findMax(dictionary: dict): # find the maximum value in the dictionary
-    print("FINDING LE MAX")
-    max = [0, 0, "", "0"] # [value, session, subject, yearlevel]
-    for eachyearlevel in dictionary.keys():
-        for eachsubject in dictionary[eachyearlevel].keys():
-            for eachsession in dictionary[eachyearlevel][eachsubject]:
-                if dictionary[eachyearlevel][eachsubject][eachsession] > max[0]:
-                    max = [dictionary[eachyearlevel][eachsubject][eachsession], eachsession, eachsubject, eachyearlevel]
-    #print(type(max[2]))
-
-    return max[1:] # [session, subject, yearlevel]
+    max = [0,0,0] # [session, value, yearlevel]
+    for eachyearlevel in dictionary:
+        for eachsession in eachyearlevel:
+            if dictionary[eachyearlevel][eachsession] > max[1]:
+                max = [eachsession,dictionary[eachyearlevel][eachsession],eachyearlevel]
+    return [max[0],max[2]]
 
 def studentshifting(nlist: list, student: int): # see if any students have a lower priority than the current one
-    # find the student with the largest priority
+    # find the student with the highest priority
     print("shifting")
-    tempstudent = [0, None, 0]  # [class index, student index, priority]
+    tempstudent = [0, None, 0]  # First represents class, second represents index, third represents their priority
     for item in nlist:
-        print(f'Classroom id: {item} with students: {classroomList[item].students}')
-        for eachstudent in classroomList[item].students[1:]:
-            if studentList[eachstudent].priority > tempstudent[2] and eachstudent != tempstudent[1]: # check for higher priority and not the same student
-                tempstudent = [item, eachstudent, studentList[eachstudent].priority]
+        for eachstudent in classroomList[item].student[1:]:
+            if studentList[eachstudent].priority > tempstudent[2]:
+                tempstudent = [item, eachstudent,studentList[eachstudent].priority]
     # kick the student with the highest priority IF it's higher than the current student
-    print(tempstudent)
     if tempstudent[2] > studentList[student].priority: 
-        kickstudent(tempstudent[0], tempstudent[1], student) #kicks the student and adds a new one
+        kickstudent(item, tempstudent, student) #kicks the student and adds a new one
         return True
     else:
         return False
 
 def kickstudent(classroom: int, studenttokick: int, studenttoadd: int): # kick a student out and replace them with the new student
     print("kicking")
-    print(f'Classroom: {classroom}, Student: {studenttokick}, Adding: {studenttoadd}')
-    print(f'Length Before: {len(classroomList[classroom].students)}')
-    classroomList[classroom].removeStudent(studenttokick)
-    print(f'Length: {len(classroomList[classroom].students)}')
+    classroomList[classroom].removeStudent(studentList(studenttokick))
     studentList[studenttokick].classes[classroomList[classroom].subject] = None
     studentList[studenttokick].updatePriority()
     addstudent(classroom,studenttoadd)
@@ -595,16 +506,15 @@ def addstudent(classroom: int, student: int): # add a student to class
     print("adding")
     classroomList[classroom].students.append(student)
     studentList[student].classes[classroomList[classroom].subject] = classroom
-    return True
 
 def checknotsame(classroom: int, student: int): # check that the student does not already have a class during that time
     found = False
-    for i in studentList[student].classes.keys():
-        if not(studentList[student].classes[i] in [None,"None"]):
+    for i in studentList[student].classes.key():
+        if studentList[student].classes[i] != None:
             tempnum = studentList[student].classes[i]
             found = True
     if found:
-        return bool([classroomList[tempnum].day,classroomList[tempnum].time] != [classroomList[classroom].day,classroomList[classroom].time])
+        return bool([classroomList[tempnum].day,classroomList[tempnum].session] != [classroomList[classroom].day,classroomList[classroom.session]])
     else:
         return True
 
