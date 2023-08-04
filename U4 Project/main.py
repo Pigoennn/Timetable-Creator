@@ -142,7 +142,10 @@ def programBegin(): #Begin the creation process
                             day = f'L{day}'
                         print("creating")
                         createclass(tutorList.index(tutor), day, tutor.subject, tempyearlevel) # creates the class
-                        break
+                        if len(tutor.classes) < tutor.maximum and value % 2 == 0 and tutor.availability[value + 1] in currentpriority:
+                            pass
+                        else:
+                            break
         if not(checkclasses(int(tempyearlevel))):
             try:
                 print("Switching")
@@ -252,21 +255,11 @@ def endOfAlgorithm():
                 if int(studentList[student].yearLevel) != eachclass.yearlevel:
                     print(eachclass.yearlevel)
                     print("STUDENT ERROR")'''
-    csvoutput()
+    finishingscreen()
     print("HEHEHEHE FINISHED")
 
-def csvoutput(): # This will be the output for the csv
-    # Reset the csv file
-    with open("timetable.csv", "w") as deletingfile:
-        deletingfile.close()
-    # Begin creating the csv file
-    
-    with open("timetable.csv","w") as file:
-        pass
-    pass 
-
 def classnaming():
-    global englishyearlevelnaming, mathsyearlevelnaming, classroomList
+    global englishyearlevelnaming, mathsyearlevelnaming, classroomList, timetableClassrooms
     # Go through every available class and name them
     for classroom in classroomList:
         if len(classroom.students) >= 2:
@@ -284,6 +277,14 @@ def classnaming():
             print("working")
         elif len(classroom.students) == 1:
             classroomDelete(classroomList.index(classroom))
+    # Switch online class
+    for day in timetableClassrooms.keys():
+        for session in timetableClassrooms[day].keys():
+            if "Online1" in timetableClassrooms[day][session]:
+                importantlist = [i for i in timetableClassrooms[day][session].keys() if "Online" in i]
+                removeonlineclassrooms(day,session,importantlist)
+
+    # JUST FOR PRINTING
     for classroom in classroomList:
         if len(classroom.students) >= 1:
             print("-" * 48)
@@ -295,6 +296,14 @@ def classnaming():
                     first = False
                 else:
                     print(f'-> {studentList[i].name}')   
+
+def removeonlineclassrooms(day: str, session: str, nlist: list):
+    global timetableClassrooms
+    ### Remove all unnecessary classrooms
+    for room in nlist:
+        if len(classroomList[timetableClassrooms[day][session][room]].students) <= 1:
+            timetableClassrooms[day][session].pop(room)
+
 
 def backup(unavailable: dict):
     global doomedstudentlist
@@ -613,6 +622,110 @@ def classexists(day: str, session: str, yearlevel: int, subject: str): # check i
         if classroomList[timetableClassrooms[day][session][eachroom]].yearlevel == yearlevel and classroomList[timetableClassrooms[day][session][eachroom]].subject == subject:
             return True
     return False
+
+###--------------------------------------------------------------------------
+
+# earlylatetimes[daytype][subject][session]
+earlylatetimes = {
+    "Weekday": {
+        "Maths": {
+            "Early": "5:00 - 6:30 pm",
+            "Late": "7:00 - 8:30 pm"
+        },
+        "English": {
+            "Early": "5:00 - 7:00 pm",
+            "Late": "7:00 - 9:00 pm"
+        }
+    },
+    "Weekend": {
+        "Maths": {
+            "Early": "11:30 - 1:00 pm",
+            "Late": "2:00 - 3:30 pm"
+        },
+        "English": {
+            "Early": "11:30 - 1:30 pm",
+            "Late": "2:00 - 4:00 pm"
+        }
+    }
+}
+
+def finishingscreen():
+    csvoutput()
+
+def csvoutput():  # This will be the output for the csv
+    # Begin creating the csv file
+    with open("timetable.csv", "w") as file:
+        dayfocus = 0
+        # hmm
+        file.write(",\n"*2)
+        file.write(",Monday (Workshops),,,Colour Legend\n")
+        file.write("Early\n")
+        file.write(",\n" * 5)
+        file.write("Late\n")
+        file.write(",\n" * 5)
+        while dayfocus < 5:
+            file.write(",\n"*2)
+            dayfocus += 1
+            day = Tutor.daylist[dayfocus]
+            file.write(f',{day}\n,In-Person')
+            file.write(","*len(availableClassrooms))
+            file.write("Online\n")
+            for session in timetableClassrooms[day].keys():
+                templist = [
+                    [session], # Name of classroom
+                    [""], # Tutor Names
+                    [""], # Time
+                    [""], # Classroom
+                    [""], # Classtype
+                    [""], # Students
+                    [""],
+                    [""], 
+                    [""],
+                    [""],
+                ]
+                # Begin finding all necessary information
+                for classroom in timetableClassrooms[day][session].keys():
+                    theclass = classroomList[timetableClassrooms[day][session][classroom]] # have an object hold the information for ease
+                    # append the classname
+                    if len(theclass.students) >= 2:
+                        templist[0].append(theclass.name)
+                    else:
+                        templist[0].append("")
+                    # append the tutor
+                    if len(theclass.students) >= 2:
+                        templist[1].append(tutorList[theclass.students[0]].name)
+                    else:
+                        templist[1].append("")
+                    # append the time
+                    if len(theclass.students) >= 2:
+                        templist[2].append(earlylatetimes["Weekday" if theclass.day in Tutor.daylist[:5] else "Weekend"][theclass.subject][session])
+                    else:
+                        templist[2].append("")
+                    # append the classroom
+                    if len(theclass.students) >= 2:
+                        if "Online" in theclass.classroom:
+                            print(theclass.day)
+                            print(theclass.classroom)
+                            templist[3].append("Online")
+                        else:
+                            templist[3].append(theclass.classroom)
+                    else:
+                        templist[3].append("")
+                    # append the classtype
+                    if len(theclass.students) >= 2:
+                        templist[4].append(f'Normal {theclass.yearlevel}')
+                    else:
+                        templist[4].append("")
+                    for option in range(5,10):
+                        try:
+                            templist[option].append(studentList[theclass.students[option-4]].name)
+                        except IndexError:
+                            templist[option].append("")
+                # now input it into the file:
+                for line in templist:
+                    string = ",".join(line)
+                    file.write(string + "\n")
+    print("ta da")
 
 sWindow.show()
 sys.exit(app.exec())
