@@ -1,0 +1,5 @@
+YEAR LEVELS NOTE (y,x): In a class of 100 students, the number of students who would be Y year level is X
+8,70 / 7,12 / 6,10 / 5,8
+
+DampeningFactor:
+1.5

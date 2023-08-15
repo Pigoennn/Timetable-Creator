@@ -62,9 +62,9 @@ border-radius: 15px;</string>
    <widget class="QPushButton" name="CreateTimetableButton">
     <property name="geometry">
      <rect>
-      <x>220</x>
+      <x>210</x>
       <y>240</y>
-      <width>161</width>
+      <width>181</width>
       <height>41</height>
      </rect>
     </property>
@@ -83,10 +83,19 @@ border-radius: 15px;</string>
      <bool>true</bool>
     </property>
     <property name="styleSheet">
-     <string notr="true">border-radius: 20px;
-background-color: #645CB8;
-color: rgb(255,255,255);
-</string>
+     <string notr="true">QPushButton {
+	border-radius: 20px;
+	background-color: #645CB8;
+	color: white;
+	border-style: outset;
+}
+QPushButton:hover {
+	background-color: #7870cc;
+}
+QPushButton:pressed {
+	background-color: #5048a4;
+	border-style: inset;
+}</string>
     </property>
     <property name="text">
      <string>Create Timetable</string>
@@ -141,7 +150,7 @@ color: rgb(255,255,255);
      <bool>true</bool>
     </property>
     <property name="toolTip">
-     <string>Click here to upload!</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click here to select a file!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="toolTipDuration">
      <number>0</number>
@@ -154,12 +163,17 @@ color: rgb(255,255,255);
     </property>
     <property name="styleSheet">
      <string notr="true">QPushButton{
-	color: rgb(255,255,255);
+	color: white;
 	background-color: #645CB8;
 	border-radius: 0px;
 	border: 1px solid #87E2E8;
 }
-
+QPushButton:hover {
+	background-color: #7870cc;
+}
+QPushButton:pressed {
+	background-color: #5048a4;
+}
 QToolTip{
 	background-color: rgb(232, 232, 232);
 	color: rgb(0, 0, 0);
@@ -187,14 +201,17 @@ QToolTip{
      <cursorShape>PointingHandCursor</cursorShape>
     </property>
     <property name="toolTip">
-     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click here to upload!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click here to select a file!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="styleSheet">
      <string notr="true">QPushButton{
 	background-color: #87E2E8;
 	border-radius: 0px;
+	border-width: 0px;
 }
-
+QPushButton:pressed {
+	background-color: #73ced4;
+}
 QToolTip{
 	background-color: rgb(232, 232, 232);
 	color: rgb(0, 0, 0);
@@ -228,17 +245,22 @@ QToolTip{
      <bool>true</bool>
     </property>
     <property name="toolTip">
-     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click here to upload!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click here to select a file!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="styleSheet">
-     <string notr="true">QPushButton {
+     <string notr="true">QPushButton{
 	color: rgb(255,255,255);
 	background-color: #645CB8;
 	border-radius: 0px;
 	border: 1px solid #87E2E8;
 }
-
-QToolTip {
+QPushButton:hover {
+	background-color: #7870cc;
+}
+QPushButton:pressed {
+	background-color: #5048a4;
+}
+QToolTip{
 	background-color: rgb(232, 232, 232);
 	color: rgb(0, 0, 0);
 	border-color: rgb(0, 0, 0);
@@ -268,15 +290,18 @@ QToolTip {
      <bool>true</bool>
     </property>
     <property name="toolTip">
-     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click here to upload!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click here to select a file!&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="styleSheet">
-     <string notr="true">QPushButton {
+     <string notr="true">QPushButton{
 	background-color: #87E2E8;
 	border-radius: 0px;
+	border-width: 0px;
 }
-
-QToolTip {
+QPushButton:pressed {
+	background-color: #73ced4;
+}
+QToolTip{
 	background-color: rgb(232, 232, 232);
 	color: rgb(0, 0, 0);
 	border-color: rgb(0, 0, 0);

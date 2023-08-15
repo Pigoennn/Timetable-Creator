@@ -7,42 +7,7 @@ from random import randint
 from startupscren import * # starting screen (screen where you input your csv files)
 from displayscren import * # finishing screen (screen where you view classes and download the csv file)
 
-def programBegin():
-    global studentList, tutorList, classroomList, timetableClassrooms
-    global timetable,availableClassrooms,yearlevelstats,yearlevelclassesneeded,timetable
-    minimum = float('inf')
-    tempstudentlist = []
-    temptutorlist = []
-    tempclassroomList = []
-    temptimetableClassrooms = {}
-    for attempt in range(10):
-        studentList = []
-        tutorList = []
-        classroomList = []
-        timetableClassrooms = {}
-        timetable = {}
-        availableClassrooms = []
-        yearlevelstats = {}
-        yearlevelclassesneeded = {}
-        doomedstudentlist = []
-        num = start()
-        if type(num) is str or type(num) is None:
-            pass
-        else:
-            if num == 0:
-                return finishingtouches()
-            elif num < minimum:
-                tempstudentlist = list(studentList)
-                temptutorlist = list(tutorList)
-                tempclassroomList = list(classroomList)
-                temptimetableClassrooms = dict(timetableClassrooms)
-    studentList = list(tempstudentlist)
-    tutorList = list(temptutorlist)
-    classroomList = list(tempclassroomList)
-    timetableClassrooms = dict(temptimetableClassrooms)
-    return finishingtouches()
-
-def start(): # Begin the creation process
+def programBegin(): # Begin the creation process
     global timetable, numberOfStudents, studentList, availableClassrooms, timetableClassrooms, classroomList, studentCSV, tutorCSV
     from startupscren import studentCSV, tutorCSV
 
@@ -138,6 +103,7 @@ def start(): # Begin the creation process
                 theIndex = temp.index(i)
                 tutorList[theIndex].updateName() #add an additional letter
                 break
+    
     # Begin the class creation process
     # Set up the timetableClassrooms dictionary
     for i in timetable.keys():
@@ -241,7 +207,7 @@ def start(): # Begin the creation process
                 currentsubject.append(currentsubject.pop(0))  # Recycle the first subject to the back
 
     # Now that everything has been setup, begin assigning students to classes
-    return switchScreens()
+    switchScreens()
 
 # If the button is clicked attempt to start the algorithm
 sWindow.CreateTimetableButton.clicked.connect(lambda: programBegin())
@@ -258,7 +224,7 @@ completelydoomed = [] # List of students who are completely doomed
 def switchScreens(): # Switch screens
     lWindow.show()
     sWindow.close()
-    return startAlgorithm()
+    startAlgorithm()
 
 def startAlgorithm(): # Begin adding students to classes through the Gale Shapley Algorithm
     mainsubject = "Maths" # Begin with Maths as the focus subject
@@ -282,7 +248,7 @@ def startAlgorithm(): # Begin adding students to classes through the Gale Shaple
                 mainsubject = "English"
                 for student in range(len(studentList)):
                     studentList[student].switching() # Reset all students' availabilities
-    return endOfAlgorithm() # Begin the finishing touches
+    endOfAlgorithm() # Begin the finishing touches
 
 def modifiedGaleShapley(student: int, subject: str):
     ### A modified version of the Gale Shapley Algorithm. The proposers will be the students and the proposed-to will be the classes
@@ -324,16 +290,11 @@ def endOfAlgorithm():
     for eachclass in (classroomList):
         if len(eachclass.students) == 1:
             classroomDelete(classroomList.index(eachclass))
+    
     # Begin back up classes creation algorithm
     contingencyplan()
     statuscheck()
-    missinglist = []
-    for studentmissing in studentList:
-        if 'None' in studentmissing.classes.values():
-            missinglist.append(studentmissing)
-    return len(missinglist)
 
-def finishingtouches():
     # Now clean up all the classes for QoL purposes
     findofflineonlinestudents() # Try to clean the classes
     classroomswitching() 
@@ -930,8 +891,6 @@ def csvoutput():  # This will be the output for the csv
                     # append the classroom
                     if len(theclass.students) >= 2:
                         if "Online" in theclass.classroom:
-                            print(theclass.day)
-                            print(theclass.classroom)
                             templist[3].append("Online")
                         else:
                             templist[3].append(theclass.classroom)

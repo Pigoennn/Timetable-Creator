@@ -1,38 +1,66 @@
 import sys
 from PyQt6.QtWidgets import *
-from PyQt6.QtCore import Qt
 from PyQt6 import uic as PyUI
 from math import ceil
+
+# csv file directory holder variables
+studentCSV = "/Users/jonathan/Documents/GitHub/Timetable-Project/U4 Project/student.csv"
+tutorCSV = "/Users/jonathan/Downloads/Tutor Availability Spreadsheet - Availabilities (3).csv"
 
 app = QApplication(sys.argv)
 sWindow = PyUI.loadUi("startingScren.ui")
 sWindow.setWindowTitle("Timetable Creator")
 
-# csv file directory holder variables
-studentCSV = "/Users/jonathan/Downloads/Student Availability Spreadsheet (Form Responses) - Form Responses 1 (4).csv"
-tutorCSV = "/Users/jonathan/Downloads/Tutor Availability Spreadsheet - Availabilities (3).csv"
-
-dampeningfactor = 1 # dampening factor for class creation
-
-def changeInfoLabel(text: str):  # This is much easier to type
+def changeInfoLabel(text: str):  # For changing the info label (This is much easier to type)
     sWindow.infoTextLabel.setText(text)
 
-
-def getFileName(type):
+def getFileName(type): # Opens the computer's folders and retrieves the directory of the selected file
     global studentCSV, tutorCSV
     file_filter = 'Data File (*.csv)'
+    # Open the folder:
     response = QFileDialog.getOpenFileName(
         sWindow,
         "Choose the csv file",
-        filter=file_filter
+        filter = file_filter
     )
-    # print(str(response))
+    # Check if file was not empty, then identify which button was pressed
     if not str(response) == "('', '')":
+        # Update student csv file if student
         if type == "student":
             studentCSV = str(response[0])
-            # print(studentCSV)
+            # Change the text of the file to the directory
             sWindow.studentAvailabilityButton.setText(studentCSV)
+            # Set the stylesheet of the button
             sWindow.studentAvailabilityButton.setStyleSheet("""
+            QPushButton {
+	            color: white;
+	            background-color: #645CB8;
+	            border-radius: 0px;
+	            border-color: #87E2E8;
+                text-align: left;
+                transition: background-color 5s;
+            }
+            QPushButton:hover {
+	            background-color: #7870cc;
+            }
+            QPushButton:pressed {
+                background-color: #5048a4;
+            }
+            QToolTip{
+            	background-color: rgb(232, 232, 232);
+            	color: black;
+            	border-color: black;
+            	border-width: 2px;
+            }
+            """
+            )
+        # Update tutor csv file if tutor
+        elif type == "tutor":
+            tutorCSV = str(response[0])
+            # Change the text of the file to the directory
+            sWindow.tutorAvailabilityButton.setText(tutorCSV)
+            # Set the stylesheet
+            sWindow.tutorAvailabilityButton.setStyleSheet("""
             QPushButton{
 	            color: rgb(255,255,255);
 	            background-color: #645CB8;
@@ -40,53 +68,50 @@ def getFileName(type):
 	            border: 1px solid #87E2E8;
                 text-align: left;
             }
-
+            QPushButton:hover {
+	            background-color: #7870cc;
+            }
+            QPushButton:pressed {
+                background-color: #5048a4;
+            }
             QToolTip{
             	background-color: rgb(232, 232, 232);
-            	color: rgb(0, 0, 0);
-            	border-color: rgb(0, 0, 0);
+            	color: black;
+            	border-color: black;
             	border-width: 2px;
             }
             """
             )
-        elif type == "tutor":
-            tutorCSV = str(response[0])
-            # print(tutorCSV)
-            sWindow.tutorAvailabilityButton.setText(tutorCSV)
-
 
 def fileVerification():  # Verify if the csv files are correct
+    message = ""
     if studentCSV == "" or tutorCSV == "":
-        return False
-    verified = 0
+        return "Please select a CSV File" # If nothing given, instantly reject it
     with open(tutorCSV, 'r') as file:
         bigFile = file.read().splitlines()
         # Check for the Tutor Availability title
-        if bigFile[0] == str(',"') and "Tutor Availability" in bigFile[1]:
-            print("tutor passed")
-            verified += 1
+        if not(bigFile[0] == str(',"') and "Tutor Availability" in bigFile[1]):
+            return "Incorrect Tutor File"
     with open(studentCSV, 'r') as file:
-        print('student happening')
         bigFile2 = file.read().splitlines()
         # Check the columns
-        if "Timestamp,Email Address,First Name,Last Name," in bigFile2[0]:
+        if "Timestamp,Email Address,First Name,Last Name" in bigFile2[0]:
             for eachStudent in bigFile2:  # Check if any students gave a misinput
                 templist = eachStudent.split(',')
                 emptyChoices = 0
+                earlyandlatechoice = False
                 for eachOption in templist:
                     if eachOption == "":
                         emptyChoices += 1
-                if emptyChoices >= 4:
-                    print("set to zero")
-                    # Set verified to 0 if a student has an incorrect choice. This ensures that verified cannot reach 2 and thus is not verified.
-                    verified = 0
-            verified += 1
-            print("this happened")
-    print(verified)
-    return bool(verified == 2)  # If both tests are passed, then it is verified
+                    elif "Early" in eachOption and "Late" in eachOption:
+                        earlyandlatechoice = True
+                if emptyChoices >= 4 and not(earlyandlatechoice): # If a student has only given one choice and the choice is not both early and late, then it fails
+                    return f"Student {eachStudent[2], eachStudent[3]} has error"
+        else:
+            return "Incorrect Student File"
+    return message  # If both tests are passed, then it is verified
 
-
-timetable = {}  # Timetable of Classe Times
+timetable = {}  # Timetable of Class Times
 timetableClassrooms = {}  # Timetable of Classrooms
 studentList = []  # List of student class
 tutorList = []  # List of tutors class
@@ -94,97 +119,86 @@ availableClassrooms = []  # which Classrooms are available
 classroomList = []  # list of all the classrooms (useful for later)
 alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
             'A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1', 'O1', 'P1', 'Q1', 'R1', 'S1', 'T1', 'U1', 'V1', 'W1', 'X1', 'Y1', 'Z1']
-mathsyearlevelnaming = {}
-englishyearlevelnaming = {}
-yearlevelstats = {}  # statistics of all the year level
+mathsyearlevelnaming = {} # Naming dictionary for later
+englishyearlevelnaming = {} # Naming dictionary for later
+yearlevelstats = {}  # statistics of all year levels
 yearlevelclassesneeded = {}  # classes still needed for each year level
-numberOfClasses = 0
 
-def fixtemp(n: list):
-    templist = []
-    for item in range(len(n)):
-        if n[item] != "":
-            if n[item][0] == "\"":
-                templist.append(item)
-    final = list(n)
-    num = 0
-    for i in templist:
-        final[i-num] = f'{final[i-num][1:]} {final.pop(i+1-num)[:-1]}'
-        num += 1
-    return final
+def fixtemp(n: list): # Remove any " marks in each item in the given list
+    list1 = list(n)
+    for i in range(len(list1)):
+        list1[i] = list1[i].replace("\"", "") # Replace each " in a string with nothing (if there is no " then nothing happens)
+    return list1
 
-def howmanyonlineclasses(day: str, session: str):
+def howmanyonlineclasses(day: str, session: str): # Find the number of already existing online classes for naming
     count = 1
     for eachroom in timetableClassrooms[day][session].keys():
-        if "Online" in eachroom:
+        if "Online" in eachroom: # If the word "Online" is in the name of room, then add 1 to the counter
             count += 1
     return count
 
-def defineyearlevel(tutor: int):
-    classesNeeded()
-    possibleyearlevels = tutorList[tutor].yearlevels
-    mostneeded = ["0", 0]
-    for eachyear in yearlevelclassesneeded.keys():
-        if yearlevelclassesneeded[eachyear] > mostneeded[1] and eachyear in possibleyearlevels:
-            mostneeded = [eachyear, yearlevelclassesneeded[eachyear]]
-    return mostneeded[0]
-
-def priorityCheck():  # returns False if all tutors have a priority of 0
-    for tutor in tutorList:
-        print(f'{tutor.name}: {tutor.priority}')
-        print("ayo")
-        if tutor.priority == 0 or len(tutor.classes) == tutor.maximum:
-            pass
-        else:
-            return True
-    return False
-
 def yearLevelStats():  # create statistics on the year level
-    print("bonjourrr")
     global yearlevelstats, mathsyearlevelnaming, englishyearlevelnaming
-    for student in studentList:
+    for student in studentList: # Find the year level of each student and update the dictionary
         if student.yearLevel in yearlevelstats.keys():
             yearlevelstats[student.yearLevel] += 1
         else:
             yearlevelstats[student.yearLevel] = 1
-    print(yearlevelstats)
-    num = 0
-    for i in yearlevelstats.values():
-        num += 1
-    for eachkey in yearlevelstats.keys():
+    for eachkey in yearlevelstats.keys(): # Let the naming dictionaries know what year levels exist
         mathsyearlevelnaming[eachkey] = 0
         englishyearlevelnaming[eachkey] = 0
-    classesNeeded()
-    return num
 
-def classesNeeded():
+def yearlevelcleaning():
+    global yearlevelstats, studentList
+    removallist = []
+    for yearlevel in yearlevelstats.keys():
+        if metaphoricallyspeakingISITPOSSIBLE(yearlevel):
+            removallist.append(yearlevel)
+            yearlevelstats[yearlevel] = 0
+    if removallist:
+        for student in studentList:
+            if student.yearLevel in removallist:
+                for i in student.classes.keys():
+                    student.classes[i] = "None"
+    return classesNeeded()
+
+def metaphoricallyspeakingISITPOSSIBLE(yearlevel: str):
+    amount = {
+        "Maths": 0,
+        "English": 0
+    }
+    for tutor in tutorList:
+        if yearlevel in tutor.yearlevels:
+            amount[tutor.subject] += tutor.availability.count(2) + tutor.availability.count(1)
+    return [i for i in amount.keys() if amount[i] < yearlevelstats[yearlevel]]
+
+def classesNeeded(): # Find the number of classes needed based on the population of the year level divided by 5 as there are 5 students in each class
     global yearlevelclassesneeded
     for eachkey in yearlevelstats.keys():
-        yearlevelclassesneeded[eachkey] = ceil(yearlevelstats[eachkey] / 5)
+        yearlevelclassesneeded[eachkey] = ceil(yearlevelstats[eachkey] / 5) # Divide by 5 as there are 5 students in each class
+    return
 
-def checkclasses(yearlevel: int):
-    print(yearlevelclassesneeded[str(yearlevel)] * dampeningfactor)
-    tempnum = ceil(yearlevelclassesneeded[str(yearlevel)] * dampeningfactor)
-    #print("Tempnum: " + str(tempnum))
+def checkclasses(yearlevel: str): # Check if there are enough classes for the chosen year level of each subject
+    tempnum = ceil(yearlevelclassesneeded[yearlevel] * dampeningfactor) # Find the number of classes needed and multiply it by the dampening factor
+    # Use a dictionary to hold the number of classes needed for each subject
     dict1 = {
         "Maths": tempnum,
         "English": tempnum
     }
+    # Check each class and reduce the respective subject by 1 if it matches the year level
     for eachclass in classroomList:
-        #print(f'Value of {eachclass.yearlevel} with type of {type(eachclass.yearlevel)}')
-        #print(f'{yearlevel} and {type(yearlevel)}')
         if eachclass.yearlevel == yearlevel:
             dict1[eachclass.subject] -= 1
-    print(dict1)
+    # Now check that the number of classes needed is negative otherwise there are not enough classes
     for i in dict1.keys():
         if dict1[i] > 0:
             return True
     return False
 
+# Student Class. All students will have an object that contains their name, email, year level, availability, and attendance method
 class Student:
-    daylist = ["Tuesday", "Wednesday", "Thursday","Friday", "Saturday"]  # list of possible days
-
     def __init__(self, email: str, firstname: str, lastname: str, yearLevel: str, place: str, Tuesday: int, Wednesday: int, Thursday: int, Friday: int, Saturday: int):
+        # Update the student using the given information
         self.firstname = firstname
         self.lastname = lastname
         self.name = f'{firstname} {lastname[0]}'
@@ -195,85 +209,77 @@ class Student:
         self.templist = [Tuesday, Wednesday, Thursday, Friday, Saturday]
         self.availability = []
         self.subject = ""
+        # Update the availability based on the given information
         for i in range(len(self.templist)):
             match self.templist[i]:
-                case 0:
+                case 0: # Is not available
                     pass
-                case 1:
+                case 1: # Available during the early session
                     self.availability.append(f'E{Student.daylist[i]}')
-                case 2:
+                case 2: # Available during the late session
                     self.availability.append(f'L{Student.daylist[i]}')
-                case _:
+                case 3: # Available during both
                     self.availability.append(f'E{Student.daylist[i]}')
                     self.availability.append(f'L{Student.daylist[i]}')
-        self.originalavailability = list(self.availability)
-        print(self.availability)
+        self.originalavailability = list(self.availability) # Copy the current availability for resetting
+        # Classes dictionary for algorithm
         self.classes = {
             "Maths": None,
             "English": None
         }
-        self.updatePriority()
-        self.switchattempts = 0
+        self.updatePriority() # Update the priority based on its length
 
-    def updateName(self):
+    def updateName(self): # Update the students name (if another student has the same name and initial)
         self.lastnameinitial += 1
         self.name += self.lastname[self.lastnameinitial]
 
-    def updatePriority(self):
+    def updatePriority(self): # Update the students priority and reduce it if the student already has a subject
         self.priority = len(self.availability)
         for i in self.classes.keys():
-            if self.classes[i] != None:
+            if self.classes[i] != None: # Check if class not available then reduce priority
                 self.priority -= 1
+        if self.priority < 0:
+            self.priority = 0
     
-    def switching(self): # reset availability and remove the class already in it
-        self.availability = list(self.originalavailability)
-        if not(self.classes["Maths"] in [None,"None"]):
-            temporary = [classroomList[self.classes["Maths"]].day, classroomList[self.classes["Maths"]].time]
-            for i in self.availability:
+    def switching(self): # reset availability and remove the student's current class
+        self.availability = list(self.originalavailability) # reset
+        if not(self.classes["Maths"] in [None,"None"]): # Check if they actually have a Math Class
+            temporary = [classroomList[self.classes["Maths"]].day, classroomList[self.classes["Maths"]].time] # Format it into the student availability format
+            for i in self.availability: # Find which class is the already taken class
                 if i == f'{temporary[1][0]}{temporary[0]}':
                     self.availability.pop(self.availability.index(i))
                     break
-
+               
+# Tutor Class. All tutors will have an object that represents their name, subject, year level, teaching method and availability informatino
 class Tutor:
-    daylist = ["Monday", "Tuesday", "Wednesday","Thursday", "Friday", "Saturday"]
-
     def __init__(self, fullname: str, subject: str, yearlevel: str, listinformation: list, maximum: int, place: str):
-        self.fullname = fullname.split(" ")
-        self.firstname, self.lastname = self.fullname[0], self.fullname[1]
-        self.name = f'{self.firstname} {self.lastname[0]}'
-        self.subject = subject
-        self.yearlevels = yearlevel.split('/')
-        for eachyear in range(len(self.yearlevels)):
-            self.yearlevels[eachyear] = self.yearlevels[eachyear].replace(
-                "\"", '')
-        self.availability = listinformation
-        self.lastnameinitial = 0
-        self.originalavailability = list(listinformation)
-        self.maximum = int(maximum)
-        self.classplace = place
+        self.fullname = fullname.split(" ") # Fullname
+        self.firstname, self.lastname = self.fullname[0], " ".join(self.fullname[1:]) # First and last name
+        self.name = f'{self.firstname} {self.lastname[0]}' # Default name. First name and first letter of last name
+        self.subject = subject # What subject they teach
+        self.yearlevels = yearlevel.split('/') # List of year levels they teach
+        for eachyear in range(len(self.yearlevels)): # Remove any " still remaining
+            self.yearlevels[eachyear] = self.yearlevels[eachyear].replace("\"", '')
+        self.availability = listinformation # Availability of the tutor
+        self.lastnameinitial = 0 # Their current last name initial
+        self.originalavailability = list(listinformation) # Original availability if needed to reset
+        self.maximum = int(maximum) # Maximum number of classes they can teach
+        self.classplace = place # In-Person, Online or Both
         # change all missing inputs to 0
         for eachNumber in range(len(self.availability)):
             try:
-                self.availability[eachNumber] = int(
-                    self.availability[eachNumber])
+                self.availability[eachNumber] = int(self.availability[eachNumber])
             except Exception:
                 self.availability[eachNumber] = 0
-        self.updatepriority()  # set priority
-        self.updatepriority1()  # set extra priority
         self.classes = []  # create a list of all classes currently being taken
         self.extraclasses = 0
 
-    def updateName(self):
+    def updateName(self): # Update their name if there is a tutor with a matching name and initials
         self.lastnameinitial += 1
         self.name += self.lastname[self.lastnameinitial]
 
-    def updatepriority(self):
-        self.priority = self.availability.count(2)
-
-    def updatepriority1(self):
-        self.newpriority = self.availability.count(1)
-
-class Class:  # create class for Classes
+# class Class. Each class is stored as an object that has details on the day, early/late session, classroom location, tutor and students
+class Class: 
     def __init__(self, day: str, time: str, classroom: str):
         self.day = day  # what day
         self.time = time  # early or late session
@@ -281,20 +287,41 @@ class Class:  # create class for Classes
         self.subject = ""  # subject
         self.students = []  # list of tutor + students
         self.name = "SEL"  # naming for later
-        self.yearlevel = 0  # year level
+        self.yearlevel = "0"  # year level
         self.classtype = ""  # online or offline
 
-    def removeStudent(self, student: int): # Remove a student
-        print(f"The length of this thing is {len(self.students)}")
-        print(bool(student in self.students[1:]))
+    def removeStudent(self, student: int): # Remove a student from a class
         for students in range(len(self.students)):
             if self.students[students] == student and students != 0:
                 self.students.pop(students)
-                return # clear
+                studentList[student].classes[self.subject] = None
+                studentList[student].updatePriority()
+                return
 
-sWindow.studentAvailabilityButton.clicked.connect(
-    lambda: getFileName("student"))
-sWindow.studentAvailabilityButton2.clicked.connect(
-    lambda: getFileName("student"))
+sWindow.studentAvailabilityButton.clicked.connect(lambda: getFileName("student"))
+sWindow.studentAvailabilityButton2.clicked.connect(lambda: getFileName("student"))
 sWindow.tutorAvailabilityButton.clicked.connect(lambda: getFileName("tutor"))
 sWindow.tutorAvailabilityButton2.clicked.connect(lambda: getFileName("tutor"))
+
+with open("settings.txt", "r") as settingsfile:
+    setting = settingsfile.read().splitlines()
+    for line in range(len(setting)):
+        setting[line] = setting[line].split(" = ") # Split the string into two different lists
+    # thepossibledays for a student
+    Student.daylist = setting[0][1].split(",")
+    # thepossibledays for a tutor
+    Tutor.daylist = setting[1][1].split(",")
+    if not(Tutor.daylist[0] in Student.daylist):
+        startnum = 2
+    else:
+        startnum = 0
+    if not (Tutor.daylist[-1] in Student.daylist):
+        endnum = -2
+    else:
+        endnum = None
+    # dampening factor for class creation. 1 means no dampening. >1 Means it attempts to create more classes than necessary. <1 Means it attempts to create less classes than necessary.
+    dampeningfactor = float(setting[2][1])
+
+### HELLO
+### FINISH DOCUMENTATION
+### CREATE SYSTEM FOR WRITING COMPLETELY BUMMED STUDENTS INTO A TXT FILE

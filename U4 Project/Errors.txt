@@ -1,0 +1,10 @@
+23:04:01
+Students who did not receive a class: 1
+
+(English)
+Sloane K
+sloanekirk@gmail.com
+Year 6
+Attendance Method: In-Person
+Availabilities: ['ETuesday', 'LTuesday', 'EWednesday', 'LWednesday', 'LFriday']
+
