@@ -7,7 +7,10 @@ from random import randint
 from startupscren import * # starting screen (screen where you input your csv files)
 from displayscren import * # finishing screen (screen where you view classes and download the csv file)
 
-def programBegin(): # Begin the creation process
+def programBegin(): # Start the entire algorithm
+    start()
+
+def start(): # Begin the creation process
     global timetable, numberOfStudents, studentList, availableClassrooms, timetableClassrooms, classroomList, studentCSV, tutorCSV
     from startupscren import studentCSV, tutorCSV
 
@@ -131,18 +134,22 @@ def programBegin(): # Begin the creation process
     allyearlevels = list(yearlevelstats.keys())
     tempyearlevel = allyearlevels.pop(0)
     currentpriority = [2] # List that contains that acceptable availabilities
+    indexallowed = 0    # Used for only getting classes outside the tutor's first priority if needed
     attemptcounter = 0 # Number of attempts
     while checkclasses(tempyearlevel):
         # Create a class using createClass function
         # First we find a tutor that has the year level and is not maxed out on classes and matches the requirements
         attemptcounter += 1
         for tutor in tutorList:
-            if tempyearlevel in tutor.yearlevels and len(tutor.classes) < tutor.maximum and [i for i in currentpriority if i in tutor.availability[startnum:endnum]]:
+            if tempyearlevel in tutor.yearlevels and tutor.yearlevels.index(tempyearlevel) <= indexallowed and len(tutor.classes) < tutor.maximum and [i for i in currentpriority if i in tutor.availability[startnum:endnum]]:
                 # Once found, randomly pick one of their priorities
                 try:
                     value = tutor.availability.index(0)
                 except ValueError: # Just in case they're full on availabilities
-                    value = tutor.availability.index(3)
+                    try: 
+                        value = tutor.availability.index(3)
+                    except ValueError:
+                        value = randint(0, len(tutor.availability) - 1)
                 while not(daysPossible[value] in Student.daylist and tutor.availability[value] in currentpriority):
                     value = randint(0,len(tutor.availability) - 1)
                 day = daysPossible[value]  # Check which day it is
@@ -170,11 +177,17 @@ def programBegin(): # Begin the creation process
                 if 1 in currentpriority:
                     currentpriority.remove(1)
                 attemptcounter = 0
+                indexallowed = 0
             except IndexError:
                 pass
-        # Append 1 to the priority counter if not enough classes can be made
-        if attemptcounter == 8:
+        # If not enough classes can be made, first extend the year level range, then append 1 to the priority counter
+        if attemptcounter == 15:
             currentpriority.append(1)
+        elif attemptcounter % 5 == 0:
+            indexallowed += 1
+        elif attemptcounter > 10000:
+            print("FUCK")
+            return Exception
     
     # Attempt to create more classrooms for higher chance of less students without any classes
     # The exact same thing as the above algorithm except that it switches between English and Maths subjects randomly and takes the tutor's first year level preference
@@ -185,7 +198,10 @@ def programBegin(): # Begin the creation process
     for i in range(reallycoolnumber):
         for tutor in tutorList:
             if len(tutor.classes) < tutor.maximum and tutor.subject == currentsubject[0] and [i for i in currentpriority if i in tutor.availability[startnum:endnum]]:
-                chosen = tutor.availability.index(3)
+                try:
+                    chosen = tutor.availability.index(3)
+                except ValueError:
+                    chosen = tutor.availability.index(0)
                 while (tutor.availability[chosen] == 0 or tutor.availability[chosen] == 3) or not(daysPossible[chosen] in Student.daylist):
                     chosen = randint(0,len(tutor.availability)-1)
                 day = daysPossible[chosen]  # which day is it
@@ -215,7 +231,7 @@ sWindow.CreateTimetableButton.clicked.connect(lambda: programBegin())
 ###-------------------------------------------------------------------------------
 # Loading Screen
 
-lWindow = PyUI.loadUi("loadingScren.ui")
+lWindow = PyUI.loadUi(findui("UIfiles/loadingScren.ui"))
 lWindow.setWindowTitle("Creating Classes...")
 
 lWindow.progressBar.setValue(0) # Set the progress bar to 0%
@@ -228,7 +244,7 @@ def switchScreens(): # Switch screens
 
 def startAlgorithm(): # Begin adding students to classes through the Gale Shapley Algorithm
     mainsubject = "Maths" # Begin with Maths as the focus subject
-
+    print("fadjkadfssadfklasfklkldfs")
     while not(checkstudents(mainsubject)):
         for student in range(len(studentList)):
             if studentList[student].classes[mainsubject] == None:
@@ -296,9 +312,9 @@ def endOfAlgorithm():
     statuscheck()
 
     # Now clean up all the classes for QoL purposes
+    onlineclassroomswitching()
     findofflineonlinestudents() # Try to clean the classes
     classroomswitching() 
-    onlineclassroomswitching()
     remainingstudents()
     # now that all classes have been made and cleaned, begin naming them
     classnaming()
@@ -309,16 +325,14 @@ def remainingstudents(): # Create a text file for any students who have no class
     for student in studentList:
         if "None" in student.classes.values():
             remains.append(student)
-    if remains:
-        from datetime import datetime
-        with open("Errors.txt", "w") as errorfile:
-            errorfile.write(f'{datetime.now().strftime("%H:%M:%S")}\n')
-            errorfile.write(f"Students who did not receive a class: {len(remains)}\n\n")
-            for student in remains:
-                errorfile.write(f'({",".join([i for i in student.classes.keys() if student.classes[i] == "None"])})\n{student.name}\n{student.email}\nYear {student.yearLevel}\nAttendance Method: {student.place}\nAvailabilities: {student.originalavailability}\n')
-                errorfile.write("\n")
-    else:
-        return
+    from datetime import datetime
+    with open("Errors.txt", "w") as errorfile:
+        errorfile.write(f'{datetime.now().strftime("%H:%M:%S")}\n')
+        errorfile.write(f"Students who did not receive a class: {len(remains)}\n\n")
+        for student in remains:
+            errorfile.write(f'({",".join([i for i in student.classes.keys() if student.classes[i] == "None"])})\n{student.name}\n{student.email}\nYear {student.yearLevel}\nAttendance Method: {student.place}\nAvailabilities: {student.originalavailability}\n')
+            errorfile.write("\n")
+    return
 
 def classnaming(): # Give each class a name
     global englishyearlevelnaming, mathsyearlevelnaming, classroomList, timetableClassrooms
@@ -374,7 +388,8 @@ def contingencyplan(): # Final attempt to create a class for all students
             "English": []
         }
     
-    dictionary = backup(asdfdict)
+    dictionary = backup(asdfdict) # Back up function needs a dictionary that represents the unavailable session, so we send an empty dictionary in
+
     # now that we have the most common times needed, take the most popular time and find a tutor with an availability for that time
     # if no tutor has an availability for that time, remove it, which is what the following variable is for
 
@@ -385,7 +400,6 @@ def contingencyplan(): # Final attempt to create a class for all students
         unavailablesessions[yearlevel] = {}
         for subject in dictionary[yearlevel].keys():
             unavailablesessions[yearlevel][subject] = []
-
     while dictionary != {}:
         statuscheck() # Set the progress bar
 
@@ -404,13 +418,12 @@ def contingencyplan(): # Final attempt to create a class for all students
         for tutor in range(len(tutorList)):
             if tutorList[tutor].availability[num] in [1, 2] and tutorList[tutor].subject == classfocus[1] and classfocus[2] in tutorList[tutor].yearlevels and len(tutorList[tutor].classes) < tutorList[tutor].maximum:
                 temptutorlist.append(tutor)
-        
         # If the tutor list is empty, than the session is unavailable and add it to unavailablesessions dictionary
         if len(temptutorlist) == 0:
             unavailablesessions[classfocus[2]][classfocus[1]].append(classfocus[0])
         else:
             # find tutor with least amount of classes
-            min = [None, 10000]
+            min = [None, float('inf')]  # [tutorindex, length of their classes]
             for eachtutor in temptutorlist:
                 tempamount = len(tutorList[eachtutor].classes)
                 # find least amount of classes
@@ -489,7 +502,7 @@ def newkids(classroom: int): # function finds the lowest priority students and r
     potentiallist = [] # list of all potential students
     for student in doomedstudentlist:
         # check if the session is in the availability and matching year level and does not have a class at this time
-        if session in studentList[student].originalavailability and int(studentList[student].yearLevel) == theyearlevel and checknotsame(classroom, student):
+        if session in studentList[student].originalavailability and studentList[student].yearLevel == theyearlevel and checknotsame(classroom, student):
             potentiallist.append(student)
     return bubblesort5(potentiallist) # Return the 5 students with the lowest priority via Bubble Sort
 
@@ -671,7 +684,7 @@ def findofflineonlinestudents(): # Try to switch any in-person students that are
                     # Check if the student is online
                     if studentList[onlinestudent].place == "Online":
                         # Append a list containing the online student and their classroom
-                        onlinestudentlist.append([onlinestudent, offlineclassroom])
+                        onlinestudentlist.append([onlinestudent,timetableClassrooms[day][session][offlineclassroom]])
     canmove(onlinestudentlist)
     return
         
@@ -721,11 +734,13 @@ def canmove(onlinelist:list): # Go through each given student's availability and
             # Check each room in that availability
             for room in timetableClassrooms[availability[1:]][earlyorlate(availability[0])].keys():
                 # Check that the classroom fits the condition (Online, yearlevel and subject)
+                print(timetableClassrooms[availability[1:]][earlyorlate(availability[0])][room])
+                print(type(timetableClassrooms[availability[1:]][earlyorlate(availability[0])][room]))
                 if classroomList[timetableClassrooms[availability[1:]][earlyorlate(availability[0])][room]].yearlevel == studentList[student].yearLevel and classroomList[timetableClassrooms[availability[1:]][earlyorlate(availability[0])][room]].subject == classroomList[classroom].subject and "Online" in room:
                     # Check that the classroom has space
                     if len(classroomList[timetableClassrooms[availability[1:]][earlyorlate(availability[0])][room]].students) < 6:
-                        classroomList[classroom].removeStudent(classroom) # Remove the student from previous classroom
-                        addstudent(classroomList[timetableClassrooms[availability[1:]][earlyorlate(availability[0])][room]], student) # Add the student to the new classroom
+                        classroomList[classroom].removeStudent(student) # Remove the student from previous classroom
+                        addstudent(timetableClassrooms[availability[1:]][earlyorlate(availability[0])][room], student) # Add the student to the new classroom
                         breaking = True # Begin breaking 
                 if breaking:
                     break

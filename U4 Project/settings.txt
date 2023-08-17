@@ -1,3 +1,3 @@
 StudentDays = Tuesday,Wednesday,Thursday,Friday,Saturday
 TutorDays = Monday,Tuesday,Wednesday,Thursday,Friday,Saturday
-DampeningFactor = 1.5
+DampeningFactor = 0.75

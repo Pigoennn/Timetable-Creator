@@ -29,7 +29,7 @@ class FinalWindow(QWidget): # Class for the final window
         self.grid = QGridLayout() # Grid Layout
         # Add all the items to the grid
         self.grid.addWidget(self.table,0,0)
-        self.grid.addWidget(self.button,1,0,alignment=Qt.AlignmentFlag.AlignRight)
+        self.grid.addWidget(self.button,1,0,alignment = Qt.AlignmentFlag.AlignRight)
         self.grid.addWidget(self.info,0,1)
         self.grid.setColumnStretch(0,1)
         self.grid.setColumnMinimumWidth(1,100)
@@ -43,8 +43,8 @@ class FinalWindow(QWidget): # Class for the final window
     def onSelection(self, selected): # Used to change info label when cell is clicked
         # Run a try just in case a header was clicked or the cell has "None" attached to it
         try:
-            cell = selected.indexes()[0]
-            cell = [cell.row(),cell.column()]
+            cell = selected.indexes()[0]    # Get the last clicked box
+            cell = [cell.row(), cell.column()]  # Obtain [row,column] position
             classname = self.table.item(cell[0],cell[1]).text()
             for classroom in FinalWindow.classList:
                 if classroom.name == classname:
@@ -119,6 +119,8 @@ class FinalWindow(QWidget): # Class for the final window
         for i in range(self.table.columnCount()):
             self.table.setColumnWidth(i,100) # Change size of each column
         self.table.setEditTriggers(QAbstractItemView.EditTrigger(0)) # Turn off editing
+        self.table.setDragEnabled(False)
+        self.table.setAlternatingRowColors(True)
         templist = list(maxnumberofclasses) # Represents the columns
         for i in templist:
             if "Online" in i:

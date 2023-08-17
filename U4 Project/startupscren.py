@@ -1,14 +1,26 @@
+import os
 import sys
 from PyQt6.QtWidgets import *
 from PyQt6 import uic as PyUI
 from math import ceil
 
 # csv file directory holder variables
-studentCSV = "/Users/jonathan/Documents/GitHub/Timetable-Project/U4 Project/student.csv"
-tutorCSV = "/Users/jonathan/Downloads/Tutor Availability Spreadsheet - Availabilities (3).csv"
+studentCSV = ""
+tutorCSV = ""
+
+def findui(original: str):
+    try:
+        basepath = sys._MEIPASS
+    except AttributeError:
+        basepath = os.path.abspath(".")
+        relativepath = original
+    else:
+        mainthing = os.path.split(original)[1]
+        relativepath = mainthing
+    return os.path.join(basepath, relativepath)
 
 app = QApplication(sys.argv)
-sWindow = PyUI.loadUi("startingScren.ui")
+sWindow = PyUI.loadUi(findui("UIfiles/startingScren.ui"))
 sWindow.setWindowTitle("Timetable Creator")
 
 def changeInfoLabel(text: str):  # For changing the info label (This is much easier to type)
@@ -62,11 +74,12 @@ def getFileName(type): # Opens the computer's folders and retrieves the director
             # Set the stylesheet
             sWindow.tutorAvailabilityButton.setStyleSheet("""
             QPushButton{
-	            color: rgb(255,255,255);
+	            color: white;
 	            background-color: #645CB8;
 	            border-radius: 0px;
-	            border: 1px solid #87E2E8;
+	            border-color: #87E2E8;
                 text-align: left;
+                transition: background-color 5s;
             }
             QPushButton:hover {
 	            background-color: #7870cc;
@@ -85,8 +98,12 @@ def getFileName(type): # Opens the computer's folders and retrieves the director
 
 def fileVerification():  # Verify if the csv files are correct
     message = ""
-    if studentCSV == "" or tutorCSV == "":
-        return "Please select a CSV File" # If nothing given, instantly reject it
+    if studentCSV == "" and tutorCSV == "":
+        return "Please select your CSV Files" # If nothing given, instantly reject it
+    elif studentCSV == "":
+        return "Please select a Student CSV File"
+    elif tutorCSV == "":
+        return "Please select a Tutor CSV File"
     with open(tutorCSV, 'r') as file:
         bigFile = file.read().splitlines()
         # Check for the Tutor Availability title
