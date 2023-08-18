@@ -1,11 +1,6 @@
-import sys
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
-
-'''app = QApplication(sys.argv)
-dWindow = PyUI.loadUi("displayscren.ui")
-dWindow.setWindowTitle("Timetable")'''
 
 class FinalWindow(QWidget): # Class for the final window
     maindictionary = {} # Dictionary of class indexes/pointers

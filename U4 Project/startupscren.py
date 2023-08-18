@@ -40,6 +40,7 @@ def getFileName(type): # Opens the computer's folders and retrieves the director
         # Update student csv file if student
         if type == "student":
             studentCSV = str(response[0])
+            print(studentCSV)
             # Change the text of the file to the directory
             sWindow.studentAvailabilityButton.setText(studentCSV)
             # Set the stylesheet of the button
@@ -69,6 +70,7 @@ def getFileName(type): # Opens the computer's folders and retrieves the director
         # Update tutor csv file if tutor
         elif type == "tutor":
             tutorCSV = str(response[0])
+            print(tutorCSV)
             # Change the text of the file to the directory
             sWindow.tutorAvailabilityButton.setText(tutorCSV)
             # Set the stylesheet

@@ -8,7 +8,10 @@ from startupscren import * # starting screen (screen where you input your csv fi
 from displayscren import * # finishing screen (screen where you view classes and download the csv file)
 
 def programBegin(): # Start the entire algorithm
-    start()
+    try:
+        start()
+    except Exception:
+        return changeInfoLabel("An errors has occurred. Please check the csv files and reset the software")
 
 def start(): # Begin the creation process
     global timetable, numberOfStudents, studentList, availableClassrooms, timetableClassrooms, classroomList, studentCSV, tutorCSV

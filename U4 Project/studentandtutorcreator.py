@@ -68,8 +68,11 @@ def earlylatechoose():
 def createtutors():
     global usednames,namelist, yearlevelstats
     with open("tutor.csv","w") as file:
-        for item in [',"',"Tutor Availability",",",",",","]:
-            file.write(f'{item}\n')
+        file.write(',"\n')
+        file.write("Tutor Availability,\n")
+        file.write(',,,,,,,,"Please put your availabilities in . Use ""2"" if available for a class, ""1"" if potentially availabile for a class or leave blank if unavailable ",,,,,,,,,"\n')
+        file.write(',Name,Subject,Year Level,Monday,,Tuesday,,Wednesday,,Thursday,,Friday,,Saturday,,What is the maximum number of classes you would like?,Online or In-Person?\n')
+        file.write(',,,(Put in preference),5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,10:00 - 12:00,12:00 - 2:00,,Or Both?\n')
         while [pp for pp in yearlevelstats.values() if pp > 0]:
             usednames.append(namelist.pop(randint(0,len(namelist)-1)))
             tempname = usednames[-1]
@@ -86,7 +89,7 @@ def createtutors():
                 yearlevel.append("7")
             if chance % 5 == 0:
                 yearlevel.append("6")
-            if chance % 7 == 0:
+            if chance % 7 == 0 or chance % 10 == 0:
                 yearlevel.append("5")
             if not yearlevel:
                 yearlevel.append("8")
@@ -117,7 +120,10 @@ def createtutors():
                 case _:
                     place = "In-Person"
             file.write(f',{tempname},{subject},{"/".join(yearlevel)},,,{",".join(availability)},{maxclasses},{place}\n')
-            
+        file.write(","*10)
+        file.write("\n")
+        file.write(''',Rooms:,,,,,,,,,,,Help:,,,,,
+,"201,205,206,207,208",,,,''')
 
 def availabilitychoose(last = '3', latesession = False):
     if not(latesession) or last == "":

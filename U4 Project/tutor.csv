@@ -1,51 +1,31 @@
 ,"
-Tutor Availability"
-,,,,,,,,"Please put your availabilities in. Use ""2"" if available for a class,""1"" if potentially availabile for a class or leave blank if unavailable ",,,,,,,,,
+Tutor Availability,
+,,,,,,,,"Please put your availabilities in . Use ""2"" if available for a class, ""1"" if potentially availabile for a class or leave blank if unavailable ", , , , , , , , ,"
 ,Name,Subject,Year Level,Monday,,Tuesday,,Wednesday,,Thursday,,Friday,,Saturday,,What is the maximum number of classes you would like?,Online or In-Person?
 ,,,(Put in preference),5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,10:00 - 12:00,12:00 - 2:00,,Or Both?
-,Nina Mack,English,7/5,,,2,2,,1,,2,,1,,,7,In-Person
-,Hashim Raymond,Maths,7/6,,,,,2,2,,,2,2,,2,8,In-Person
-,Keagan Howe,Maths,5,,,1,1,2,2,,,2,2,1,1,5,In-Person
-,Alfonso Duran,English,8,,,2,2,,,1,1,,2,,2,12,In-Person
-,Finn Mayer,Maths,7,,,2,2,,,,,2,2,,2,12,In-Person
-,Stephen Copeland,English,8,,,2,2,2,2,,,1,1,,2,4,In-Person
-,Devon Burch,English,8/7,,,,2,,2,2,2,2,2,1,1,9,In-Person
-,Fay Winters,Maths,8/7/6,,,2,2,2,2,,2,2,2,,2,10,In-Person
-,Roselyn Curry,English,8,,,2,2,,2,2,2,2,2,,2,11,In-Person
-,Shania Richards,Maths,6,,,2,2,,,2,2,,,,2,11,In-Person
-,Marquise Holloway,English,8,,,,1,,2,,2,,,2,,5,Online
-,Mareli Cooper,English,8/6,,,2,2,,2,,2,2,,,1,11,In-Person
-,Camilla Bloggs,Maths,8,,,,,2,2,,,2,2,,,8,In-Person
-,Santiago Lawson,English,8,,,2,2,1,1,2,2,,2,,1,10,In-Person
-,Braylon Mckay,Maths,7/8,,,2,2,,,2,,1,1,,2,4,In-Person
-,Arabella Jefferson,English,8,,,2,2,2,2,2,2,,,1,1,7,In-Person
-,Helena Moore,English,8,,,,,,2,2,2,,1,,,11,In-Person
-,Jamal Garza,Maths,5,,,1,1,2,2,,,,1,2,,9,In-Person
-,Alonzo Hardy,English,7,,,,,2,2,2,2,,2,2,2,4,In-Person
-,Sloane Conner,English,8,,,,2,2,2,,,2,2,,2,7,In-Person
-,Rebekah Guzman,Maths,7,,,2,2,,2,2,2,,,2,2,10,In-Person
-,Frederic Henry,English,8,,,,2,,,2,2,2,2,,2,12,In-Person
-,Emiliano Perkins,Maths,8/6/7,,,,,,,2,2,,2,2,2,11,Online
-,Mary Sherman,Maths,5/8,,,,,1,1,,2,2,2,2,2,5,In-Person
-,Janae Willis,Maths,7/5,,,,,2,2,1,1,,2,2,2,4,In-Person
-,Catherine Maynard,English,8,,,,2,2,2,,2,,,1,1,6,In-Person
-,Kelsie Lucas,English,8/6,,,,,1,1,1,1,,,2,2,5,In-Person
-,Giovanna Benson,Maths,7,,,,2,2,2,2,2,,,2,2,7,Online
-,Lia Avila,Maths,8,,,,,2,2,2,,,2,,2,12,In-Person
-,Javon Gallagher,English,7/8/6,,,1,1,,2,2,2,,2,2,2,8,In-Person
-,Kaitlyn Mccarty,English,8,,,2,2,2,2,,,2,2,1,1,10,Online
-,Ace Chandler,Maths,6/8/7,,,,1,,2,1,,2,2,,,12,In-Person
-,Leland May,English,6/7,,,2,2,2,,,2,2,2,,2,5,In-Person
-,Barry Powell,English,6,,,2,2,,2,2,2,1,1,2,2,9,In-Person
-,Alec Kramer,English,7/5,,,2,2,2,2,2,2,,1,2,2,11,In-Person
-,Miah Escobar,English,8/7,,,2,2,2,2,1,1,2,2,1,1,4,In-Person
-,Angelina Sparks,English,8/7,,,2,2,2,2,,,2,,,2,12,In-Person
-,Izabella Ayala,English,8,,,2,2,1,1,2,2,2,2,2,2,11,In-Person
-,Eleanor Stuart,Maths,5,,,2,2,2,2,2,2,,,,,7,In-Person
-,Chana Hickman,Maths,6/7,,,2,2,,2,1,1,2,2,,,10,In-Person
-,Sandra Baker,Maths,8/6,,,1,1,,2,,2,2,2,,,6,Online
-,Zaynah Carey,English,7/8,,,2,2,1,1,,1,,1,2,2,11,In-Person
-,Shirley Mercado,English,8,,,,1,2,,2,2,2,2,1,1,10,In-Person
-,,,,,,,,
+,Kaylee Scott,Maths,8,,,,2,,2,,1,2,2,2,2,5,Online
+,Sierra Mcgrath,Maths,8,,,,1,,2,2,2,2,2,,2,9,Online
+,Mya Valenzuela,Maths,7,,,2,2,,,,,2,2,,1,4,In-Person
+,Sloane Conner,Maths,6,,,2,2,2,2,2,2,,,1,1,5,Online
+,Jayson Irwin,English,6,,,,,,,2,2,,2,,2,9,In-Person
+,Misael Hull,English,8,,,1,1,,,2,2,,2,1,1,11,In-Person
+,India Mann,Maths,7/6,,,,2,1,1,2,2,,,2,2,10,In-Person
+,Ayaan Carson,English,8,,,2,2,,2,,2,,,,2,8,In-Person
+,Brett Fulton,English,5/7,,,1,1,,,,,2,2,2,,4,In-Person
+,Gail Melendez,Maths,7,,,,,,2,2,2,,1,1,1,7,In-Person
+,Vivian Schmitt,Maths,8/7,,,2,2,2,,,2,,,,,12,In-Person
+,Arabella Jefferson,Maths,8,,,2,2,,,2,2,2,2,,,5,Online
+,Kelvin Ali,Maths,8,,,1,1,2,,2,,2,2,1,1,11,Online
+,Enrique Rose,English,8/7,,,,2,2,2,2,2,2,2,,2,12,In-Person
+,Rodolfo Holloway,Maths,7/8,,,2,2,,,2,2,,2,2,2,7,In-Person
+,Isabel Mcdaniel,Maths,8,,,1,1,,,,,,,2,2,6,In-Person
+,Amanda Wheeler,English,5,,,,1,2,2,2,2,2,2,,1,9,In-Person
+,Yasmine Mosley,English,6/8,,,,2,,2,2,2,,,2,2,4,Online
+,Kobe Summers,Maths,8,,,,1,,,2,,1,1,,2,12,In-Person
+,Ainsley Montes,Maths,6,,,2,2,2,2,,2,,1,,,10,In-Person
+,Akira Hayes,English,7/8,,,2,,,2,2,2,,,2,,4,Online
+,Haydn Rhodes,English,6,,,,,,1,2,2,,,,1,7,In-Person
+,Roselyn Curry,Maths,8/7,,,1,1,1,1,2,2,1,1,1,1,7,In-Person
+,,,,,,,,,,
 ,Rooms:,,,,,,,,,,,Help:,,,,,
-,"201,205,206,207,208",,,,,,,,,,,"Column Q is the very maximum number of classes you will have. Unless it is less than 6,it is quite unlikely that this limit will actually be reached.",,,,,
+,"201,205,206,207,208",,,,
