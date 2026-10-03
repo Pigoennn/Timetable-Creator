@@ -4,8 +4,8 @@ from PyQt6 import uic as PyUI
 from math import floor
 from random import randint
 
-from startupscren import * # starting screen (screen where you input your csv files)
-from displayscren import * # finishing screen (screen where you view classes and download the csv file)
+from src.startupscren import *
+from src.displayscren import *
 
 def programBegin(): # Start the entire algorithm
     try:

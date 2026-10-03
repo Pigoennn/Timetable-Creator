@@ -46,5 +46,5 @@ class Tutor:
         self.extra_classes = 0
 
     def updateName(self): # Update their name if there is a tutor with a matching name and initials
-        self.lastnameinitial += 1
-        self.name += self.lastname[self.lastnameinitial]
+        self.last_name_initial += 1
+        self.name += self.lastname[self.last_name_initial]

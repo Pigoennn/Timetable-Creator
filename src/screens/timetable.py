@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
-class FinalWindow(QWidget): # Class for the final window
+class FinalWindow(QWidget):
     maindictionary = {} # Dictionary of class indexes/pointers
     classList = [] # List of classroom objects
     studentList = [] # List of student objects
