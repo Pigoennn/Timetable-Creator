@@ -1,6 +1,8 @@
 # Student Class. All students will have an object that contains their name, email, year level, availability, and attendance method
 class Student:
 
+    days: list[str]
+
     self.first_name: str
     self.last_name: str
     self.last_name_initial: int

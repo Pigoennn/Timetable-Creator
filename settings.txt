@@ -1,3 +1,6 @@
-StudentDays = Tuesday,Wednesday,Thursday,Friday,Saturday
-TutorDays = Monday,Tuesday,Wednesday,Thursday,Friday,Saturday
-DampeningFactor = 0.75
+[Days]
+studentdays = Tuesday,Wednesday,Thursday,Friday,Saturday
+tutordays = Monday,Tuesday,Wednesday,Thursday,Friday,Saturday
+
+[Configs]
+dampening = 0.75

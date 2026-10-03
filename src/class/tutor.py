@@ -1,6 +1,9 @@
 
 
 class Tutor:
+
+    days: list[str]
+
     self.full_name: str
     self.first_name: str
     self.last_name: str
