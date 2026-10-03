@@ -22,11 +22,11 @@ class Student:
         self.first_name = first_name
         self.last_name = last_name
         self.name = f'{self.first_name} {self.last_name[0]}'
-        self.email = email
+        self.last_name_initial = 0
 
+        self.email = email
         self.year_level = str(year_level[5:])
         self.location = location
-        self.last_name_initial = 0
         self.availability = []
         self.subject = ""
 
@@ -51,11 +51,11 @@ class Student:
         }
         self.updatePriority() # Update the priority based on its length
 
-    def updateName(self): # Update the students name (if another student has the same name and initial)
+    def update_name(self): # Update the students name (if another student has the same name and initial)
         self.last_name_initial += 1
         self.name += self.lastname[self.last_name_initial]
 
-    def updatePriority(self): # Update the students priority and reduce it if the student already has a subject
+    def update_priority(self): # Update the students priority and reduce it if the student already has a subject
         self.priority = len(self.availability)
         for i in self.classes.keys():
             if self.classes[i] != None: # Check if class not available then reduce priority

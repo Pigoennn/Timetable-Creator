@@ -169,13 +169,6 @@ englishyearlevelnaming = {} # Naming dictionary for later
 yearlevelstats = {}  # statistics of all year levels
 yearlevelclassesneeded = {}  # classes still needed for each year level
 
-# removing
-def fixtemp(n: list): # Remove any " marks in each item in the given list
-    list1 = list(n)
-    for i in range(len(list1)):
-        list1[i] = list1[i].replace("\"", "") # Replace each " in a string with nothing (if there is no " then nothing happens)
-    return list1
-
 def howmanyonlineclasses(day: str, session: str): # Find the number of already existing online classes for naming
     count = 1
     for eachroom in timetableClassrooms[day][session].keys():
@@ -183,16 +176,7 @@ def howmanyonlineclasses(day: str, session: str): # Find the number of already e
             count += 1
     return count
 
-def yearLevelStats():  # create statistics on the year level
-    global yearlevelstats, mathsyearlevelnaming, englishyearlevelnaming
-    for student in studentList: # Find the year level of each student and update the dictionary
-        if student.yearLevel in yearlevelstats.keys():
-            yearlevelstats[student.yearLevel] += 1
-        else:
-            yearlevelstats[student.yearLevel] = 1
-    for eachkey in yearlevelstats.keys(): # Let the naming dictionaries know what year levels exist
-        mathsyearlevelnaming[eachkey] = 0
-        englishyearlevelnaming[eachkey] = 0
+
 
 def yearlevelcleaning():
     global yearlevelstats, studentList
@@ -268,6 +252,7 @@ with open("settings.txt", "r") as settingsfile:
 # File starts here
 
 class StartScreen:
+    """ Class to represent the Start screen. Includes all the buttons and file grabbing """
 
     self.studentCSV: str
     self.tutorCSV: str
@@ -375,5 +360,3 @@ class StartScreen:
                         chose_both_times = True
                 if empty_choices >= 4 and not(chose_both_times): # If a student has only given one choice and the choice is not both early and late, then it fails
                     return f"Student {student[2], student[3]} has error"
-        
-    def 
