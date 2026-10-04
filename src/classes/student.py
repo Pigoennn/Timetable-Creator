@@ -17,6 +17,8 @@ class Student:
 
     self.priority: int
 
+    self.classes: dict[str, any]
+
     def __init__(self, email: str, first_name: str, last_name: str, year_level: str, location: str, availability: list[int]):
         # Update the student using the given information
         self.first_name = first_name

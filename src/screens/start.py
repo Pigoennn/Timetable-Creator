@@ -360,3 +360,7 @@ class StartScreen:
                         chose_both_times = True
                 if empty_choices >= 4 and not(chose_both_times): # If a student has only given one choice and the choice is not both early and late, then it fails
                     return f"Student {student[2], student[3]} has error"
+
+    def get_files(self) -> (str, str):
+        """ Returns the studentCSV, tutorCSV """
+        return self.studentCSV, self.tutorCSV
