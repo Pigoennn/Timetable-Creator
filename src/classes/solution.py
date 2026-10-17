@@ -1,333 +1,241 @@
-# NOTE: most methods below still target the old index-based model and are rewritten in phase 3.
-
+from collections import Counter
 from math import ceil
+from random import Random
+from typing import NamedTuple
 
-from src.config import Settings
+from src.config import SUBJECTS, Settings
+from src.classes.schedule import Schedule
+from src.classes.session import Session
 from src.classes.student import Student
-from src.classes.tutor import Tutor
-from src.classes.timetable_class import Class
+from src.classes.tutor import Availability, Tutor
 
-alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-            'A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1', 'O1', 'P1', 'Q1', 'R1', 'S1', 'T1', 'U1', 'V1', 'W1', 'X1', 'Y1', 'Z1']
+SURPLUS_STUDENTS_PER_ROUND = 50     # one round of surplus classes for every this many students
 
-TUTOR_ASSIGNED      = 3
-TUTOR_AVAILABLE     = 2
-TUTOR_POTENTIAL     = 1
-TUTOR_UNAVAILABLE   = 0
+
+class Rung(NamedTuple):
+    """ One step of the relaxation ladder """
+    availabilities: tuple[Availability, ...]    # which tutor availabilities may be used
+    max_preference: int                         # how far down a tutor's year levels to go (0 = first preference only)
+
+
+def relaxation_ladder(preferences: int) -> list[Rung]:
+    """
+    Class creation rules from strictest to loosest. A looser rung is only used once the stricter
+    rungs can't create any more of the classes needed. `preferences` is the longest year level
+    list any tutor has.
+    """
+    ladder = []
+    for max_preference in range(preferences):
+        ladder.append(Rung((Availability.AVAILABLE,), max_preference))
+        ladder.append(Rung((Availability.AVAILABLE, Availability.POTENTIAL), max_preference))
+    return ladder
+
 
 class Solution:
+    """ Creates the classes for the timetable. Placing students into them comes in phase 4 """
 
     settings: Settings
-
-    days: list[str]
-
-    timetable: dict[str, list[str]]
-    timetable_classrooms: dict[str, dict[str, Class]]      # timetable[day][time] = class
+    rng: Random
 
     students: list[Student]
     tutors: list[Tutor]
-    rooms: list[str]                    # room names from the tutor sheet
+    schedule: Schedule
 
-    classrooms: list[Class]
+    classes_needed: dict[tuple[str, str], int]              # (year level, subject) -> classes to create up front
+    _available_students: Counter[tuple[str, Session]]       # (year level, session) -> students available then
 
-    maths_names: dict[str, int]
-    english_names: dict[str, int]
-
-    cohort_stats: dict[str, int]
-    classes_needed: dict[str, int]
-
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, seed: int | None = None) -> None:
         self.settings = settings
-
-        self.days = []
-
-        self.timetable = {}
-        self.timetable_classrooms = {}
+        self.rng = Random(seed)             # seeded so a run can be repeated
 
         self.students = []
         self.tutors = []
-        self.rooms = []
-        self.classrooms = []
+        self.schedule = Schedule([])
 
-        self.maths_names = {}
-        self.english_names = {}
-
-        self.cohort_stats = {}
         self.classes_needed = {}
+        self._available_students = Counter()
 
     def setup(self, students: list[Student], tutors: list[Tutor], rooms: list[str]) -> None:
         """ Give the solution the loaded students, tutors and rooms (see src/loader.py) """
         self.students = students
         self.tutors = tutors
-        self.rooms = rooms
+        self.schedule = Schedule(rooms)
 
-    # TODO(phase 3): rewrite everything below against the new models
-    def _cohort_statistics():
-        """ Create statistics for each year level """
+        self._available_students = Counter(
+            (student.year_level, session) for student in students for session in student.availability
+        )
 
-        for student in self.students: # Find the year level of each student and update the dictionary
-            if student.year_level in self.cohort_stats.keys():
-                cohort_stats[student.year_level] += 1
-            else:
-                cohort_stats[student.yearLevel] = 1
+    def execute(self) -> None:
+        """ Build the timetable """
+        self.create_classes()
+        # TODO(phase 4): place the students into the classes
 
-        for key in cohort_stats.keys():         # Let the naming dictionaries know what year levels exist
-            self.maths_names[key] = 0
-            self.english_names[key] = 0
+    def create_classes(self) -> None:
+        """ Create the classes, before any students are placed """
+        self._mark_unteachable_subjects()
+        self.classes_needed = self._count_classes_needed()
 
+        preferences = max((len(tutor.year_levels) for tutor in self.tutors), default=0)
+        for rung in relaxation_ladder(preferences):
+            self._create_needed_classes(rung)
 
-    def _year_level_cleaning(self) -> None:
-        """ Clean up the year levels.
-        Remove year levels that are not possible and calculate classes needed """
-        removal_list = []
-        for year_level in self.cohort_stats:
-            if _is_feasible_year(year_level):
-                removal_list.append(year_level)
-                self.cohort_stats[year_level] = 0
+        self._create_surplus_classes()
 
-        if removal_list:
-            for student in self.students:
-                if student.year_level in removal_list:
-                    for i in student.classes.keys():
-                        student.classes[i] = None
-
-        for key in self.cohort_stats.keys():
-            self.classes_needed[key] = ceil(cohort_stats[key] / 5)
-        
-        return
-
-
-    def _is_feasible_year(self, year_level: str) -> bool:
-        """ Checks if a year level is possible by checking if there is less classes than
-        the maximum number of classes. Not a perfect check """
-
-        classes = {
-            "Maths": 0,
-            "English": 0
+    def _mark_unteachable_subjects(self) -> None:
+        """ Students in a year level that no tutor can teach a subject to can't be placed in that subject """
+        teachable = {
+            (year_level, tutor.subject)
+            for tutor in self.tutors
+            if any(self._can_use(tutor, session, (Availability.AVAILABLE, Availability.POTENTIAL))
+                   for session in tutor.availability)
+            for year_level in tutor.year_levels
         }
-        for tutor in self.tutors:
-            if year_level in tutor.year_levels:
-                classes[tutor.subject] += tutor.availability.count(1) + tutor.availability.count(2)
 
-        return [i for i in classes.values() if i < self.cohort_stats[year_level]]
+        for student in self.students:
+            for subject in SUBJECTS:
+                if (student.year_level, subject) not in teachable:
+                    student.unplaceable.add(subject)
 
-    def _need_more_classes(self, year_level: str) -> bool:
-        num = ceil(self.classes_needed[year_level])
-
-        needed = {
-            "Maths": num,
-            "English": num
+    def _count_classes_needed(self) -> dict[tuple[str, str], int]:
+        """ Enough classes to fit every student, scaled by the dampening factor """
+        cohorts = Counter(
+            (student.year_level, subject)
+            for student in self.students
+            for subject in SUBJECTS
+            if subject not in student.unplaceable
+        )
+        return {
+            cohort: ceil(ceil(size / self.settings.class_size) * self.settings.dampening)
+            for cohort, size in cohorts.items()
         }
-        
-        # reduce respective subject by 1 if it matches year level
-        for session in self.classrooms:
-            if session.year_level == year_level:
-                needed[session.subject] -= 1
-        
-        return bool([i for i in needed.values() if i > 0])
 
+    def _shortfall(self, year_level: str, subject: str) -> int:
+        """ How many more classes are needed for this year level and subject """
+        created = sum(1 for classroom in self.schedule.classes
+                      if classroom.year_level == year_level and classroom.subject == subject)
+        return self.classes_needed.get((year_level, subject), 0) - created
 
-    def _build_timetable_grid(self) -> None:
+    def _open_demand(self, year_level: str, subject: str, session: Session) -> int:
+        """ Students in the year level available at this session, minus the seats already created for them """
+        classes = sum(1 for classroom in self.schedule.classes_at(session)
+                      if classroom.year_level == year_level and classroom.subject == subject)
+        return self._available_students[(year_level, session)] - classes * self.settings.class_size
+
+    def _can_use(self, tutor: Tutor, session: Session, availabilities: tuple[Availability, ...]) -> bool:
+        """ True if the tutor could take a new class at this session """
+        return (
+            not tutor.is_full()
+            and session.day in self.settings.student_days
+            and tutor.availability_at(session) in availabilities
+            and not tutor.is_booked(session)
+        )
+
+    def _create_needed_classes(self, rung: Rung) -> None:
         """
-        Create the timetable dictionary and lists.
-        One empty Class per (day, session, room).
-
-        self.classrooms is the ordered registry of every Class object;
-        self.timetable_classrooms maps day -> session -> room -> Class.
+        Create classes until every year level and subject has enough, or this rung can't create any more.
+        Each pass gives every year level and subject one class (or pair) at most, so they take turns with the tutors.
         """
-        for day in self.timetable.keys():
-            self.timetable_classrooms[day] = {
-                "Early": {},
-                "Late": {}
-            }
+        while True:
+            short = [cohort for cohort in self.classes_needed if self._shortfall(*cohort) > 0]
+            short.sort(key=lambda cohort: self._shortfall(*cohort), reverse=True)
 
-            for session in ("Early", "Late"):
-                for room in self.available_classrooms:
-                    classroom = Class(day, session, room)
-                    self.classrooms.append(classroom)
-                    self.timetable_classrooms[day][session][room] = classroom
+            created = False
+            for year_level, subject in short:
+                if self._create_class_for(year_level, subject, rung):
+                    created = True
 
+            if not created:
+                return
 
-    def _count_online_classes(self, day: str, time: str) -> int:
-        """ Count the number of online classes. """
-        count = 0
-        for room in self.timetable_classrooms[day][time].keys():
-            if "Online" in room:
-                count += 1
-        return count
+    def _create_class_for(self, year_level: str, subject: str, rung: Rung) -> bool:
+        """ Create one class for the year level and subject, plus its pair if possible. False if none could be made """
+        choice = self._choose_tutor_and_session(year_level, subject, rung)
+        if choice is None:
+            return False
 
+        tutor, session = choice
+        self.schedule.create_class(tutor, session, subject, year_level)
 
-    def _find_availability_index(self, session: str) -> int:
-        """ Find the index of the session in the tutor availability list """
-        index = Tutor.days.index(session[1:]) * 2       # * 2 for spreadsheet formalities (not scalable)
-        return index + (1 if session[0] == "L" else 0)
+        # give the tutor the other half of the day too, so their classes are back to back
+        if self._shortfall(year_level, subject) > 0 and self._can_pair(tutor, session, year_level, rung.availabilities):
+            self.schedule.create_class(tutor, session.other_half(), subject, year_level)
 
+        return True
 
-    def _bind_class(self, classroom: Class, tutor: Tutor, session: str,
-                      subject: str, year_level: str, class_type: str) -> None:
-        """ Bind a tutor to a class and mark their slot as used. """
-        classroom.students.append(tutor)
-        classroom.subject = subject
-        classroom.yearlevel = year_level
-        classroom.classtype = class_type
+    def _can_pair(self, tutor: Tutor, session: Session, year_level: str,
+                  availabilities: tuple[Availability, ...]) -> bool:
+        """ True if the tutor could also teach the year level in the other half of the session's day """
+        other_half = session.other_half()
+        return (self._can_use(tutor, other_half, availabilities)
+                and self._open_demand(year_level, tutor.subject, other_half) > 0)
 
-        tutor.classes.append(classroom)
-        tutor.availability[self._availability_index(session)] = TUTOR_ASSIGNED      # mark slot used
-
-
-    def _create_class(self, tutor: Tutor, session: str, subject: str,
-                      year_level: str) -> Class:
+    def _choose_tutor_and_session(self, year_level: str, subject: str, rung: Rung) -> tuple[Tutor, Session] | None:
         """
-        creates a class. `session` should look like "EMonday" or "LFriday".
-
-        Returns the Class that was created.
+        Pick who teaches the next class and when. Prefers the tutor with the fewest classes,
+        then the one who wants the year level most, then the session the most students can make,
+        then a session the tutor can pair with the other half of the day.
+        Only sessions where some student still needs a seat are considered.
         """
-        time = "Early" if session[0] == "E" else "Late"
-        day = session[1:]
-
-        # attempt to assign a classroom if not online
-        if tutor.location != "Online":
-            for classroom in self.timetable_classrooms[day][time].values():
-                if not classroom.students:
-                    self._occupy_class(classroom, tutor, session, subject, year_level, "In-Person")
-                    return classroom
-
-        # no free room, or the tutor is online -> mint a new online room
-        count = self._count_online_classes(day, time)
-        classroom = Class(day, time, f"Online{count}")
-        self.classrooms.append(classroom)
-        self.timetable_classrooms[day][time][f"Online{count}"] = classroom
-        self._occupy_class(classroom, tutor, session, subject, year_level, "Online")
-
-        return classroom
-
-
-    def _relaxation_ladder(self) -> list:
-        """Ordered scheduling policies, least permissive first.
-
-        (priorities, max_preference):
-          priorities     - availability values treated as usable
-                           (2 = available, 1 = potentially available)
-          max_preference - how far down a tutor's year_levels list we may look
-
-        Replaces the original attemptcounter / indexallowed mutation, which
-        could spin forever.
-        """
-        return [
-            ([TUTOR_AVAILABLE], 0),
-            ([TUTOR_AVAILABLE, TUTOR_POTENTIAL], 0),
-            ([TUTOR_AVAILABLE], 1),
-            ([TUTOR_AVAILABLE, TUTOR_POTENTIAL], 1),
-            ([TUTOR_AVAILABLE], 2),
-            ([TUTOR_AVAILABLE, TUTOR_POTENTIAL], 2),
+        candidates = [
+            (tutor, session)
+            for tutor in self.tutors
+            if tutor.subject == subject
+            and year_level in tutor.year_levels[:rung.max_preference + 1]
+            for session in tutor.availability
+            if self._can_use(tutor, session, rung.availabilities)
+            and self._open_demand(year_level, subject, session) > 0
         ]
-
-
-    def _can_teach(self, tutor: Tutor, year_level: str, rung) -> bool:
-        priorities, max_preference = rung
-        if year_level not in tutor.year_levels:
-            return False
-        if tutor.year_levels.index(year_level) > max_preference:
-            return False
-        if len(tutor.classes) >= tutor.maximum:
-            return False
-        window = tutor.availability[self.tutor_day_start:self.tutor_day_end]
-        return any(priority in window for priority in priorities)
-
-    def _pick_session(self, tutor: Tutor, priorities: list) -> str | None:
-        """Pick a random usable slot ('EMonday'/'LFriday'), or None."""
-        options = [
-            index for index, value in enumerate(tutor.availability)
-            if value in priorities and self.days[index] in Student.days
-        ]
-        if not options:
+        if not candidates:
             return None
-        index = self.rng.choice(options)
-        return f"{'E' if index % 2 == 0 else 'L'}{self.days[index]}"
 
-    def _slot_is_usable(self, tutor: Tutor, session: str, priorities: list) -> bool:
-        index = self._availability_index(session)
-        return tutor.availability[index] in priorities and self.days[index] in Student.days
-
-    def _paired_session(self, session: str) -> str:
-        return ("L" if session[0] == "E" else "E") + session[1:]
-
-    def _create_pair(self, tutor: Tutor, year_level: str, rung) -> int:
-        """Create up to two classes (the early/late pair) for one tutor."""
-        priorities, _ = rung
-
-        session = self._pick_session(tutor, priorities)
-        if session is None:
-            return 0
-
-        created = 1
-        self._create_class(tutor, session, tutor.subject, year_level)
-
-        if len(tutor.classes) < tutor.maximum:
-            other = self._paired_session(session)
-            if self._slot_is_usable(tutor, other, priorities):
-                self._create_class(tutor, other, tutor.subject, year_level)
-                created += 1
-        return created
-
-    def _fill_year_level(self, year_level: str) -> None:
-        """Port of the main 'while checkclasses(...)' loop.
-
-        Walks the relaxation ladder; on each rung it makes passes over the
-        tutors until a pass creates nothing, then relaxes further.
-        """
-        for rung in self._relaxation_ladder():
-            while self._need_more_classes(year_level):
-                created = 0
-                for tutor in self.tutors:
-                    if not self._can_teach(tutor, year_level, rung):
-                        continue
-                    created += self._create_pair(tutor, year_level, rung)
-                if created == 0:
-                    break
+        return min(candidates, key=lambda candidate: (
+            len(candidate[0].classes),
+            candidate[0].year_levels.index(year_level),
+            -self._open_demand(year_level, subject, candidate[1]),
+            not self._can_pair(candidate[0], candidate[1], year_level, rung.availabilities),
+            self.rng.random(),
+        ))
 
     def _create_surplus_classes(self) -> None:
-        """ Create extra classes as most classes are usually not full. """
-        surplus = floor(self.number_of_students / 50)
-        subjects = ["Maths", "English"]
+        """
+        Most classes don't fill up, so give tutors some extra classes with their favourite year levels.
+        Subjects take turns so neither gets all of them.
+        """
+        rounds = len(self.students) // SURPLUS_STUDENTS_PER_ROUND
+        usable = (Availability.AVAILABLE, Availability.POTENTIAL)
+        subjects = list(SUBJECTS)
 
-        for _ in range(surplus):
+        for _ in range(rounds):
             for tutor in self.tutors:
-                if tutor.subject != subjects[0] or len(tutor.classes) >= tutor.maximum:
-                    continue
-                window = tutor.availability[self.tutor_day_start:self.tutor_day_end]
-                if not any(value in window for value in (1, 2)):
+                if tutor.subject != subjects[0]:
                     continue
 
-                session = self._pick_session(tutor, [1, 2])
-                if session is None:
+                choice = self._favourite_class(tutor, usable)
+                if choice is None:
                     continue
 
-                year_level = tutor.year_levels[0]
-                self._create_class(tutor, session, tutor.subject, year_level)
+                year_level, session = choice
+                self.schedule.create_class(tutor, session, tutor.subject, year_level)
 
-                if len(tutor.classes) < tutor.maximum:
-                    other = self._paired_session(session)
-                    if self._slot_is_usable(tutor, other, [2]):
-                        self._create_class(tutor, other, tutor.subject, year_level)
+                if self._can_pair(tutor, session, year_level, (Availability.AVAILABLE,)):
+                    self.schedule.create_class(tutor, session.other_half(), tutor.subject, year_level)
 
                 subjects.append(subjects.pop(0))
 
+    def _favourite_class(self, tutor: Tutor, availabilities: tuple[Availability, ...]) -> tuple[str, Session] | None:
+        """ The tutor's most preferred year level that has students wanting a seat, and the session most of them can make """
+        for year_level in tutor.year_levels:
+            if (year_level, tutor.subject) not in self.classes_needed:
+                continue        # no students in this year level take the subject
 
-    def _setup_classes(self):
-        year_levels: list[str] = list(year_levels.keys())
+            sessions = [
+                session for session in tutor.availability
+                if self._can_use(tutor, session, availabilities)
+                and self._open_demand(year_level, tutor.subject, session) > 0
+            ]
+            if sessions:
+                best = max(sessions, key=lambda session: (self._open_demand(year_level, tutor.subject, session),
+                                                          self.rng.random()))
+                return year_level, best
 
-        current_year_level = year_levels.pop(0)
-        
-        while _need_more_classes(current_year_level):
-            pass
-
-
-    def execute():
-        ...
-
-    # TODO:
-    # - fix up the rung thing
-    # - fix up all the naming and comments
-    # - create the actual algorithm
-    # - move everything here into a separate file and class
+        return None

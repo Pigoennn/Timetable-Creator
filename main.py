@@ -2,6 +2,7 @@ import sys
 
 from PyQt6.QtWidgets import QApplication
 
+from src.classes.solution import Solution
 from src.config import Settings, load_settings
 from src.loader import LoaderError, load_students, load_tutor_sheet, verify_files
 from src.resources import resource_path
@@ -34,8 +35,13 @@ class Main:
             self.start_screen.set_info_label(str(error))
             return
 
-        # TODO: run Solution(self.settings) once the algorithm exists (phases 3-4)
-        self.start_screen.set_info_label(f"Loaded {len(students)} students, {len(tutors)} tutors and {len(rooms)} rooms")
+        solution = Solution(self.settings)
+        solution.setup(students, tutors, rooms)
+        solution.execute()
+
+        # TODO: place students (phase 4), then show the loading and timetable screens (phase 6)
+        self.start_screen.set_info_label(f"Created {len(solution.schedule.classes)} classes "
+                                         f"for {len(students)} students")
 
 
 def main() -> None:
