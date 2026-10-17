@@ -1,14 +1,15 @@
-from student import Student
-from tutor import Tutor
+# NOTE: the methods below still target the old index-based model. Parsing moves to src/loader.py
+# in phase 2 and the class creation is rewritten against the new models in phase 3.
+
+from math import ceil
+
+from src.config import Settings
+from src.classes.student import Student
+from src.classes.tutor import Tutor
+from src.classes.timetable_class import Class
 
 alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
             'A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1', 'O1', 'P1', 'Q1', 'R1', 'S1', 'T1', 'U1', 'V1', 'W1', 'X1', 'Y1', 'Z1']
-
-from student import Student
-from tutor import Tutor
-from timetable_class import Class
-
-from math import ceil
 
 TUTOR_ASSIGNED      = 3
 TUTOR_AVAILABLE     = 2
@@ -17,27 +18,46 @@ TUTOR_UNAVAILABLE   = 0
 
 class Solution:
 
-    self.student_sheet: list[str]
-    self.tutor_sheet: list[str]
+    settings: Settings
 
-    self.days: list[str]
+    student_sheet: list[str]
+    tutor_sheet: list[str]
 
-    self.timetable: dict[str, list[str]]
-    self.timetable_classrooms: dict[str, dict[str, Class]]      # timetable[day][time] = class
+    days: list[str]
 
-    self.students: list[Student]
-    self.tutors: list[Tutor]
+    timetable: dict[str, list[str]]
+    timetable_classrooms: dict[str, dict[str, Class]]      # timetable[day][time] = class
 
-    self.classrooms: list[str]
+    students: list[Student]
+    tutors: list[Tutor]
 
-    self.maths_names: dict[int, str]
-    self.english_names: dict[int, str]
+    classrooms: list[str]
 
-    self.cohort_stats = dict[int, int]
-    self.classes_needed = dict[int, int]
+    maths_names: dict[str, int]
+    english_names: dict[str, int]
 
-    def __init__(self):
-        pass
+    cohort_stats: dict[str, int]
+    classes_needed: dict[str, int]
+
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+
+        self.student_sheet = []
+        self.tutor_sheet = []
+        self.days = []
+
+        self.timetable = {}
+        self.timetable_classrooms = {}
+
+        self.students = []
+        self.tutors = []
+        self.classrooms = []
+
+        self.maths_names = {}
+        self.english_names = {}
+
+        self.cohort_stats = {}
+        self.classes_needed = {}
 
     def setup(self, student_csv: str, tutor_csv: str) -> None:
         """ Setup the need information before starting the algorithm """

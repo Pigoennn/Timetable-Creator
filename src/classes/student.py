@@ -1,75 +1,52 @@
-# Student Class. All students will have an object that contains their name, email, year level, availability, and attendance method
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from src.config import SUBJECTS
+from src.classes.session import Session
+
+if TYPE_CHECKING:
+    from src.classes.timetable_class import Class
+
+
 class Student:
+    """ A student and their answers from the availability form """
 
-    days: list[str]
+    email: str
+    first_name: str
+    last_name: str
+    name: str                           # display name, made unique by the loader
 
-    self.first_name: str
-    self.last_name: str
-    self.last_name_initial: int
-    self.name: str
-    
-    self.email: str
-    self.year_level: str
-    self.location: str
+    year_level: str                     # "8", not "Year 8"
+    location: str                       # "In-Person" or "Online"
 
-    self.availability: list[str]
-    self.orig_availability: list[str]
+    availability: list[Session]         # in the order they appear on the form
 
-    self.priority: int
+    classes: dict[str, Class | None]    # subject -> class, None if not placed yet
+    unplaceable: set[str]               # subjects no class could be found for
 
-    self.classes: dict[str, any]
-
-    def __init__(self, email: str, first_name: str, last_name: str, year_level: str, location: str, availability: list[int]):
-        # Update the student using the given information
+    def __init__(self, email: str, first_name: str, last_name: str, year_level: str,
+                 location: str, availability: list[Session]) -> None:
+        self.email = email
         self.first_name = first_name
         self.last_name = last_name
-        self.name = f'{self.first_name} {self.last_name[0]}'
-        self.last_name_initial = 0
+        self.name = f"{first_name} {last_name[:1]}".strip()
 
-        self.email = email
-        self.year_level = str(year_level[5:])
+        self.year_level = year_level
         self.location = location
-        self.availability = []
-        self.subject = ""
 
-        # Update the availability based on the given information
-        for i in range(len(self.availability)):
-            match self.availability[i]:
-                case 0: # not available
-                    pass
-                case 1: # early session
-                    self.availability.append(f'E{Student.daylist[i]}')
-                case 2: # late session
-                    self.availability.append(f'L{Student.daylist[i]}')
-                case 3: # both
-                    self.availability.append(f'E{Student.daylist[i]}')
-                    self.availability.append(f'L{Student.daylist[i]}')
+        self.availability = availability
 
-        self.orig_availability = list(self.availability)
-        # Classes dictionary for algorithm
-        self.classes = {
-            "Maths": None,
-            "English": None
-        }
-        self.updatePriority() # Update the priority based on its length
+        self.classes = {subject: None for subject in SUBJECTS}
+        self.unplaceable = set()
 
-    def update_name(self): # Update the students name (if another student has the same name and initial)
-        self.last_name_initial += 1
-        self.name += self.lastname[self.last_name_initial]
+    def needs_class(self, subject: str) -> bool:
+        """ True if the student still needs a class for the subject and one might be found """
+        return self.classes[subject] is None and subject not in self.unplaceable
 
-    def update_priority(self): # Update the students priority and reduce it if the student already has a subject
-        self.priority = len(self.availability)
-        for i in self.classes.keys():
-            if self.classes[i] != None: # Check if class not available then reduce priority
-                self.priority -= 1
-        if self.priority < 0:
-            self.priority = 0
-    
-    def switching(self): # reset availability and remove the student's current class
-        self.availability = list(self.originalavailability) # reset
-        if not(self.classes["Maths"] in [None,"None"]): # Check if they actually have a Math Class
-            temporary = [classroomList[self.classes["Maths"]].day, classroomList[self.classes["Maths"]].time] # Format it into the student availability format
-            for i in self.availability: # Find which class is the already taken class
-                if i == f'{temporary[1][0]}{temporary[0]}':
-                    self.availability.pop(self.availability.index(i))
-                    break
+    def is_available(self, session: Session) -> bool:
+        return session in self.availability
+
+    def is_booked(self, session: Session) -> bool:
+        """ True if the student already has a class at this session """
+        return any(classroom is not None and classroom.session == session for classroom in self.classes.values())

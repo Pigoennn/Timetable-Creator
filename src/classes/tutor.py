@@ -1,53 +1,59 @@
+from __future__ import annotations
+
+from enum import IntEnum
+from typing import TYPE_CHECKING
+
+from src.classes.session import Session
+
+if TYPE_CHECKING:
+    from src.classes.timetable_class import Class
+
+
+class Availability(IntEnum):
+    """ What a tutor wrote in a timeslot on the availability sheet """
+    UNAVAILABLE = 0     # left blank
+    POTENTIAL = 1       # "potentially available"
+    AVAILABLE = 2
 
 
 class Tutor:
+    """ A tutor and everything they put on the availability sheet """
 
-    days: list[str]
+    full_name: str
+    first_name: str
+    last_name: str
+    name: str                                   # display name, made unique by the loader
 
-    self.full_name: str
-    self.first_name: str
-    self.last_name: str
-    self.last_name_initial: int = 0
-    self.name: str
+    subject: str
+    year_levels: list[str]                      # in order of preference
+    location: str                               # "In-Person", "Online" or "Both"
 
-    self.subject: str
-    self.year_levels: list[str] = []
-    self.location: str
+    availability: dict[Session, Availability]   # never changes; booked sessions come from `classes`
+    maximum: int                                # maximum number of classes they want
 
-    self.availability: list
-    self.orig_availability: list
-    self.maximum: int
-    
-    self.classes = []                       # classes currently being taken
-    self.extra_classes: int = 0
+    classes: list[Class]
 
-
-    def __init__(self, full_name: str, subject: str, year_level: str, list_information: list, maximum: int, location: str):
-        self.full_name = full_name.split(" ")
-        self.first_name = self.fullname[0]
-        self.last_name = " ".join(self.fullname[1:])        # last name may have multiple parts
-        self.name = f'{self.firstname} {self.lastname[0]}'  # default name: first name and initial of last name
+    def __init__(self, full_name: str, subject: str, year_levels: list[str],
+                 availability: dict[Session, Availability], maximum: int, location: str) -> None:
+        self.full_name = full_name
+        self.first_name, _, self.last_name = full_name.partition(" ")     # last name may have multiple parts
+        self.name = f"{self.first_name} {self.last_name[:1]}".strip()
 
         self.subject = subject
-        temp: list[str] = year_level.split("/")
-        for i in temp:
-            self.year_levels.append(i.strip().replace("\"", ""))
+        self.year_levels = year_levels
+        self.location = location
 
-        self.availability = list_information
-        # change all missing inputs to 0
-        for eachNumber in range(len(self.availability)):
-            try:
-                self.availability[eachNumber] = int(self.availability[eachNumber])
-            except ValueError:
-                self.availability[eachNumber] = 0
-        
-        self.orig_availability = list(list_information)     # original availability to store for reset purposes
+        self.availability = availability
+        self.maximum = maximum
 
-        self.maximum = int(maximum)                         # maximum number of classes
-        self.location = location                            # In-Person, Online or Both
+        self.classes = []
 
-        self.extra_classes = 0
+    def availability_at(self, session: Session) -> Availability:
+        return self.availability.get(session, Availability.UNAVAILABLE)
 
-    def updateName(self): # Update their name if there is a tutor with a matching name and initials
-        self.last_name_initial += 1
-        self.name += self.lastname[self.last_name_initial]
+    def is_booked(self, session: Session) -> bool:
+        """ True if the tutor is already teaching at this session """
+        return any(classroom.session == session for classroom in self.classes)
+
+    def is_full(self) -> bool:
+        return len(self.classes) >= self.maximum

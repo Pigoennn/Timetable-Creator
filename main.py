@@ -1,52 +1,46 @@
 import sys
-from PyQt6.QtWidgets import *
-from PyQt6 import uic as PyUI
-from math import floor
-from random import randint
 
+from PyQt6.QtWidgets import QApplication
+
+from src.config import Settings, load_settings
+from src.loader import verify_files
+from src.resources import resource_path
 from src.screens.start import StartScreen
-# from src.screens.loading 
 
-from src.classes.solution import Solution
 
 class Main:
+    """ Connects the screens to the timetable solution """
 
-    self.solution: Solution
-    self.start_window: StartScreen
+    settings: Settings
+    start_screen: StartScreen
 
+    def __init__(self, settings: Settings, start_screen: StartScreen) -> None:
+        self.settings = settings
+        self.start_screen = start_screen
+        self.start_screen.connect_create(self.create_timetable)
 
-    def __init__(self, solution: Solution):
-        self.solution = solution
+    def create_timetable(self) -> None:
+        student_csv, tutor_csv = self.start_screen.get_files()
 
-
-    def setup_start_screen(self, start_window: StartScreen) -> None:
-        self.start_window = start_window
-        self.start_window.CreateTimetableButton.clicked.connect(lambda: self.execute())
-
-
-    def execute(self):
-        self.setup_data()
-        self.solution.execute()
-
-    
-
-    def setup_data(self) -> None:
-        if not(verify()):
-            return
-        
-        student_csv, tutor_csv = self.start_window.get_files()
-        self.solution.setup(student_csv, tutor_csv)
-
-        
-    def verify(self) -> bool:
-        """ Parent function to check if the files are up to standard """
-        error = start_window.verify_file()
+        error = verify_files(student_csv, tutor_csv)
         if error:
-            start_window.set_info_label(error)
-        
-        return not(bool(error))         # false if there is an error, true otherwise
+            self.start_screen.set_info_label(error)
+            return
+
+        # TODO: load the files (phase 2) and run Solution(self.settings) (phases 3-4)
+        self.start_screen.set_info_label("Files verified")
+
+
+def main() -> None:
+    app = QApplication(sys.argv)
+
+    settings = load_settings(resource_path("settings.txt"))
+    start_screen = StartScreen(resource_path("src/ui_files/start_screen.ui"))
+    controller = Main(settings, start_screen)
+
+    start_screen.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
-    main = Main(Solution())
-    main.setup_start_screen(StartScreen("src/ui_files/start_screen.ui"))
+    main()

@@ -1,19 +1,51 @@
-# class Class. Each class is stored as an object that has details on the day, early/late session, classroom location, tutor and students
-class Class: 
-    def __init__(self, day: str, time: str, classroom: str):
-        self.day = day  # what day
-        self.time = time  # early or late session
-        self.classroom = classroom  # which classroom is it in
-        self.subject = ""  # subject
-        self.students = []  # list of tutor + students
-        self.name = "SEL"  # naming for later
-        self.yearlevel = "0"  # year level
-        self.classtype = ""  # online or offline
+from __future__ import annotations
 
-    def removeStudent(self, student: int): # Remove a student from a class
-        for students in range(len(self.students)):
-            if self.students[students] == student and students != 0:
-                self.students.pop(students)
-                studentList[student].classes[self.subject] = None
-                studentList[student].updatePriority()
-                return
+from typing import TYPE_CHECKING
+
+from src.classes.session import Session
+
+if TYPE_CHECKING:
+    from src.classes.student import Student
+    from src.classes.tutor import Tutor
+
+
+class Class:
+    """ One class: a tutor teaching a subject to a year level, in a room, at a session """
+
+    session: Session
+    room: str
+    online: bool
+
+    subject: str
+    year_level: str
+    tutor: Tutor | None
+    students: list[Student]             # students only, the tutor is kept separately
+
+    name: str                           # e.g. "SEL MAT 8A", given at the end
+
+    def __init__(self, session: Session, room: str, online: bool = False) -> None:
+        self.session = session
+        self.room = room
+        self.online = online
+
+        self.subject = ""
+        self.year_level = ""
+        self.tutor = None
+        self.students = []
+
+        self.name = ""
+
+    def is_running(self) -> bool:
+        """ A class only runs if it has a tutor and at least one student """
+        return self.tutor is not None and bool(self.students)
+
+    def is_full(self, class_size: int) -> bool:
+        return len(self.students) >= class_size
+
+    def add_student(self, student: Student) -> None:
+        self.students.append(student)
+        student.classes[self.subject] = self
+
+    def remove_student(self, student: Student) -> None:
+        self.students.remove(student)
+        student.classes[self.subject] = None
