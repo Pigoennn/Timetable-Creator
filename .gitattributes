@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# keep the real Google Sheets export byte-for-byte (CRLF line endings)
+testing/template/*.csv -text

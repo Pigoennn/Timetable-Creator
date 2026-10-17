@@ -69,8 +69,8 @@ def createtutors():
     global usednames,namelist, yearlevelstats
     with open("tutor.csv","w") as file:
         file.write(',"\n')
-        file.write("Tutor Availability,\n")
-        file.write(',,,,,,,,"Please put your availabilities in . Use ""2"" if available for a class, ""1"" if potentially availabile for a class or leave blank if unavailable ",,,,,,,,,"\n')
+        file.write('Tutor Availability",,,,,,,,,,,,,,,,\n')       # title cell contains a newline, like the real export
+        file.write(',,,,,,,,"Please put your availabilities in . Use ""2"" if available for a class, ""1"" if potentially availabile for a class or leave blank if unavailable ",,,,,,,,,\n')
         file.write(',Name,Subject,Year Level,Monday,,Tuesday,,Wednesday,,Thursday,,Friday,,Saturday,,What is the maximum number of classes you would like?,Online or In-Person?\n')
         file.write(',,,(Put in preference),5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,10:00 - 12:00,12:00 - 2:00,,Or Both?\n')
         while [pp for pp in yearlevelstats.values() if pp > 0]:

@@ -1,5 +1,4 @@
-# NOTE: the methods below still target the old index-based model. Parsing moves to src/loader.py
-# in phase 2 and the class creation is rewritten against the new models in phase 3.
+# NOTE: most methods below still target the old index-based model and are rewritten in phase 3.
 
 from math import ceil
 
@@ -20,9 +19,6 @@ class Solution:
 
     settings: Settings
 
-    student_sheet: list[str]
-    tutor_sheet: list[str]
-
     days: list[str]
 
     timetable: dict[str, list[str]]
@@ -30,8 +26,9 @@ class Solution:
 
     students: list[Student]
     tutors: list[Tutor]
+    rooms: list[str]                    # room names from the tutor sheet
 
-    classrooms: list[str]
+    classrooms: list[Class]
 
     maths_names: dict[str, int]
     english_names: dict[str, int]
@@ -42,8 +39,6 @@ class Solution:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-        self.student_sheet = []
-        self.tutor_sheet = []
         self.days = []
 
         self.timetable = {}
@@ -51,6 +46,7 @@ class Solution:
 
         self.students = []
         self.tutors = []
+        self.rooms = []
         self.classrooms = []
 
         self.maths_names = {}
@@ -59,100 +55,13 @@ class Solution:
         self.cohort_stats = {}
         self.classes_needed = {}
 
-    def setup(self, student_csv: str, tutor_csv: str) -> None:
-        """ Setup the need information before starting the algorithm """
-        with open(tutor_csv, "r") as file:
-            self.tutor_sheet = (file.read().splitlines())[3:]
+    def setup(self, students: list[Student], tutors: list[Tutor], rooms: list[str]) -> None:
+        """ Give the solution the loaded students, tutors and rooms (see src/loader.py) """
+        self.students = students
+        self.tutors = tutors
+        self.rooms = rooms
 
-        """
-        Spreadsheet has Monday start from column E and uses 2 columns for every day.
-        Unknown how many days will be available so the end column index is unknown for now.
-        """
-        final_column_heading = "What is the maximum number of classes you would like?"
-        self.days: list[str] = self.tutor_sheet.pop(0).split(",")[4:]
-
-        # clean up the header row and find the last column
-        for day in range(len(self.days)):
-            if days[day] == "":
-                days[day] = days[day-1]
-            elif days[day] == final_column_heading:
-                end_column = day
-                break
-
-        """
-        Next row has all the available times.
-        Store these times into the dictionary
-        """
-        times = self.tutor_sheet.pop(0).split(",")[4:stopLimit+4]     # +4 to account for the offset during calculation
-        for time in range(len(times)):
-            if days[time] in self.timetable.keys():
-                self.timetable[days[time]].append(times[time])
-            else:
-                self.timetable[days[time]] = [times[time]]
-        
-
-        self._setup_students(student_csv)
-        self._cohort_statistics()
-
-        self._setup_tutors(tutor_csv)
-        self.classrooms = self.tutor_sheet[0].split("\"")[1].split(",")
-
-        # TODO:
-        # - Decide whether or not to add a separate class for setting up
-    
-    def _setup_students(self, student_csv: str):
-        with open(student_csv, "r") as file:
-            student_sheet = file.read().splitlines()[1:]
-
-        for student in student_sheet:
-            data = list(map(lambda x: x.replace("\"", ""), student.split(",")[1:]))
-            
-            # replace each time slot with a number
-            for index, slot in enumerate(data):
-                if slot < 5:
-                    continue        # ignore first 5 indexes of list
-            
-                if "Early" in data[slot] and "Late" in data[slot]:
-                    data[slot] = 3
-                elif "Late" in data[slot]:
-                    data[slot] = 2
-                elif "Early" in data[slot]:
-                    data[slot] = 1
-                else:
-                    data[slot] = 0
-                
-            self.students.append(Student(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]))
-
-        _fix_duplicates(self.student_list)
-        return
-        
-    
-    def _fix_duplicates(people: list[Student | Tutor]):
-        """ Get list of people with duplicate naming """
-        seen = set()
-        duplicates = []
-
-        for person in people:
-            name = person.name
-
-            # if name seen before, add them to the matching group in duplicates
-            if name in seen:
-                found = False
-                for group in duplicates:
-                    if group[0].name == name:
-                        group.append(person)
-                        found = True
-                        break
-                
-                if not(found):
-                    duplicates.append([people])
-        
-        for group in duplicates:
-            for i in range(len(group)):
-                for j in range(i+1):
-                    group[i].update_name()
-
-    
+    # TODO(phase 3): rewrite everything below against the new models
     def _cohort_statistics():
         """ Create statistics for each year level """
 
@@ -165,23 +74,6 @@ class Solution:
         for key in cohort_stats.keys():         # Let the naming dictionaries know what year levels exist
             self.maths_names[key] = 0
             self.english_names[key] = 0
-
-    
-    def _setup_tutors(self) -> None:
-        """ Set up the tutor list """
-        for tutor in self.tutor_sheet:
-            temp = tutor.split(",")[1:]         # first column empty
-
-            # check it's not the end
-            if "Rooms:" in temp[0]:
-                final_index = self.tutor_sheet.index(tutor)
-                self.tutor_sheet = self.tutor_sheet[final_index+1:]
-                break
-
-            if not(temp[0]):
-                self.tutors.append(Tutor(temp[0],temp[1],temp[2],temp[3:15],temp[15],temp[16]))
-
-        _fix_duplicates(self.tutors)
 
 
     def _year_level_cleaning(self) -> None:

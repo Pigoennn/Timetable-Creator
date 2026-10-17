@@ -3,7 +3,7 @@ import sys
 from PyQt6.QtWidgets import QApplication
 
 from src.config import Settings, load_settings
-from src.loader import verify_files
+from src.loader import LoaderError, load_students, load_tutor_sheet, verify_files
 from src.resources import resource_path
 from src.screens.start import StartScreen
 
@@ -27,8 +27,15 @@ class Main:
             self.start_screen.set_info_label(error)
             return
 
-        # TODO: load the files (phase 2) and run Solution(self.settings) (phases 3-4)
-        self.start_screen.set_info_label("Files verified")
+        try:
+            students = load_students(student_csv, self.settings)
+            tutors, rooms = load_tutor_sheet(tutor_csv, self.settings)
+        except LoaderError as error:
+            self.start_screen.set_info_label(str(error))
+            return
+
+        # TODO: run Solution(self.settings) once the algorithm exists (phases 3-4)
+        self.start_screen.set_info_label(f"Loaded {len(students)} students, {len(tutors)} tutors and {len(rooms)} rooms")
 
 
 def main() -> None:
