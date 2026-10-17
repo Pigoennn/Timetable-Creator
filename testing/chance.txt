@@ -1,0 +1,24 @@
+# Percentages used by testing_creator.py to make random test data.
+# Each section should add up to 100.
+
+[Year Levels]
+# out of 100 students, how many are in each year level
+8 = 70
+7 = 12
+6 = 10
+5 = 8
+
+[Student Location]
+In-Person = 90
+Online = 10
+
+[Student Days]
+# what a student puts down for each day (Blank = can't come)
+Early = 30
+Late = 30
+EarlyLate = 10
+Blank = 30
+
+[Tutor Location]
+In-Person = 80
+Online = 20

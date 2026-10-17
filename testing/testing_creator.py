@@ -1,155 +1,188 @@
-from random import randint, choice, shuffle
+""" Make a random student.csv and tutor.csv for trying out the timetable creator
 
-namelist = open("Names.txt", "r").read().splitlines()
-usednames = []
-for i in range(len(namelist)):
-    if namelist.count(namelist[i]) > 1:
-        usednames.append(i)
-for j in usednames:
-    namelist.remove(j)
-usednames = []
+    python testing/testing_creator.py 80 --out testing/test3 --seed 1
+"""
+import argparse
+import csv
+import os
+from configparser import ConfigParser
+from random import Random
 
-statistics = open("chance.txt", "r").read().splitlines()
-dampeningfactor = float(statistics[4])
-statistics = statistics[1].split(" / ")
-stats = {}
-while len(statistics) > 0:
-    temp = statistics.pop(0).split(",")
-    stats[temp[0]] = int(temp[1])
-total = sum(stats.values()) # Should be 100
-if not total == 100:
-    total = 100
+HERE = os.path.dirname(os.path.abspath(__file__))
+NAMES_FILE = os.path.join(HERE, "Names.txt")
+CHANCE_FILE = os.path.join(HERE, "chance.txt")
 
-yearlevelvalues = []
-yearlevelstats = {}
+STUDENT_DAYS = 5                # Tuesday to Saturday
+TUTOR_DAYS = 6                  # Monday to Saturday, an early and a late column each
+ROOMS = "201,205,206,207,208"
 
-for item in stats.keys():
-    yearlevelstats[item] = 0
-    for i in range(stats[item]):
-        yearlevelvalues.append(item)
+TUTOR_HEADER = [
+    ["", "\nTutor Availability"] + [""] * 15,
+    [""] * 8 + ['Please put your availabilities in. Use "2" if available for a class, "1" if potentially '
+                'availabile for a class or leave blank if unavailable '] + [""] * 9,
+    ["", "Name", "Subject", "Year Level", "Monday", "", "Tuesday", "", "Wednesday", "", "Thursday", "",
+     "Friday", "", "Saturday", "", "What is the maximum number of classes you would like?", "Online or In-Person?"],
+    ["", "", "", "(Put in preference)"] + ["5:00 - 6:30 / 7:00", "6:30 / 7:00 - 9:00"] * 5
+    + ["10:00 - 12:00", "12:00 - 2:00", "", "Or Both?"],
+]
+TUTOR_FOOTER = [
+    [""] * 11,
+    ["", "Rooms:"] + [""] * 10 + ["Help:"] + [""] * 5,
+    ["", ROOMS, "", "", "", ""],
+]
 
-print(yearlevelvalues)
-def createstudents(number: int):
-    global usednames,namelist, yearlevelstats
-    with open("student.csv", "w") as file:
-        file.write("Timestamp,Email Address,First Name,Last Name\n")
-        for i in range(number):
-            usednames.append(namelist.pop(randint(0,len(namelist)-1)))
-            tempname = usednames[-1].split(" ")
-            firstname,lastname = tempname[0], tempname[1]
-            yearlevel = "Year "
-            temp = choice(yearlevelvalues)
-            yearlevelstats[temp] += 1
-            yearlevel += temp
-            match randint(0,9):
-                case 9:
-                    place = "Online"
-                case _:
-                    place = "In-Person"
-            dayavailability = []
-            for j in range(5):
-                dayavailability.append(earlylatechoose())
-            while dayavailability.count("") > 3 or (dayavailability.count("") == 4 and dayavailability.count("EarlyLate") == 1):
-                dayavailability[randint(0,4)] = earlylatechoose()
-            file.write(f'placeholder,{firstname.lower()}{lastname.lower()}@gmail.com,{firstname},{lastname},{yearlevel},{place},{",".join(dayavailability)}\n')
-    createtutors()
 
-def earlylatechoose():
-    chance = randint(1, 100)
-    if chance in range(1, 31):
-        return "Early"
-    elif chance in range(31, 61):
-        return "Late"
-    elif chance in range(61, 71):
-        return "EarlyLate"
-    else:
-        return ""
+def load_chances(path: str = CHANCE_FILE) -> dict:
+    """ Read the percentages in chance.txt into {section: {key: int}} """
+    parser = ConfigParser()
+    parser.optionxform = str                    # keep the keys as written
+    parser.read(path)
+    return {section: {key: int(value) for key, value in parser[section].items()} for section in parser.sections()}
 
-def createtutors():
-    global usednames,namelist, yearlevelstats
-    with open("tutor.csv","w") as file:
-        file.write(',"\n')
-        file.write('Tutor Availability",,,,,,,,,,,,,,,,\n')       # title cell contains a newline, like the real export
-        file.write(',,,,,,,,"Please put your availabilities in . Use ""2"" if available for a class, ""1"" if potentially availabile for a class or leave blank if unavailable ",,,,,,,,,\n')
-        file.write(',Name,Subject,Year Level,Monday,,Tuesday,,Wednesday,,Thursday,,Friday,,Saturday,,What is the maximum number of classes you would like?,Online or In-Person?\n')
-        file.write(',,,(Put in preference),5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,5:00 - 6:30 / 7:00,6:30 / 7:00 - 9:00,10:00 - 12:00,12:00 - 2:00,,Or Both?\n')
-        while [pp for pp in yearlevelstats.values() if pp > 0]:
-            usednames.append(namelist.pop(randint(0,len(namelist)-1)))
-            tempname = usednames[-1]
-            match randint(0,1):
-                case 0:
-                    subject = "Maths"
-                case 1:
-                    subject = "English"
-            chance = randint(1, 100)
-            yearlevel = []
-            if chance % 2 == 0:
-                yearlevel.append("8")
-            if chance % 3 == 0:
-                yearlevel.append("7")
-            if chance % 5 == 0:
-                yearlevel.append("6")
-            if chance % 7 == 0 or chance % 10 == 0:
-                yearlevel.append("5")
-            if not yearlevel:
-                yearlevel.append("8")
-            shuffle(yearlevel)
-            for j in yearlevel:
-                yearlevelstats[j] -= 1
-            for thing in yearlevel:
-                if yearlevel.index(thing) == 0:
-                    yearlevelstats[thing] -= 3
-                else:
-                    yearlevelstats[thing] -= 2
-            availability = []
-            for i in range(5):
-                availability.append(availabilitychoose())
-                availability.append(availabilitychoose(availability[-1],True))
-            while availability.count("") > 8 or availability.count('2') < 2:
-                chance = randint(0,9)
-                if availability[chance] == "":
-                    match chance % 2:
-                        case 1:
-                            availability[chance] = availabilitychoose(availability[chance-1],True)
-                        case 0:
-                            availability[chance] = availabilitychoose()
-            maxclasses = minimumcount(availability)
-            match randint(1,5):
-                case 5:
-                    place = "Online"
-                case _:
-                    place = "In-Person"
-            file.write(f',{tempname},{subject},{"/".join(yearlevel)},,,{",".join(availability)},{maxclasses},{place}\n')
-        file.write(","*10)
-        file.write("\n")
-        file.write(''',Rooms:,,,,,,,,,,,Help:,,,,,
-,"201,205,206,207,208",,,,''')
 
-def availabilitychoose(last = '3', latesession = False):
-    if not(latesession) or last == "":
-        choice = randint(1,10)
-        if choice in range(1,5):
-            return "2"
-        elif choice in range(5,6):
-            return "1"
-        else:
-            return ""
-    else:
-        match randint(1,10):
-            case 10:
-                return ""
-            case _:
-                return last
+class NamePicker:
+    """ Hands out unique full names, mixing first and last names once the real ones run out """
 
-def minimumcount(nlist: list):
-    min = nlist.count(2)
-    if 2 < min <= 4:
-        return min
-    else:
-        return randint(4,12)
+    def __init__(self, rng: Random, path: str = NAMES_FILE) -> None:
+        with open(path) as file:
+            full_names = list(dict.fromkeys(line.strip() for line in file if line.strip()))
+        self.rng = rng
+        self.first_names = [name.split(" ")[0] for name in full_names]
+        self.last_names = [name.split(" ")[-1] for name in full_names]
+        self.unused = full_names
+        self.rng.shuffle(self.unused)
+        self.used = set()
 
-userinput = input("Number of students ")
+    def pick(self) -> tuple[str, str]:
+        while self.unused:
+            name = self.unused.pop()
+            if name not in self.used:
+                self.used.add(name)
+                return name.split(" ")[0], name.split(" ")[-1]
 
-createstudents(int(userinput))
+        if len(self.used) >= len(self.first_names) * len(self.last_names):
+            raise ValueError("Ran out of names")
+        while True:
+            first, last = self.rng.choice(self.first_names), self.rng.choice(self.last_names)
+            if f"{first} {last}" not in self.used:
+                self.used.add(f"{first} {last}")
+                return first, last
 
-print("DONE")
+
+def weighted(rng: Random, chances: dict[str, int]) -> str:
+    return rng.choices(list(chances), weights=list(chances.values()))[0]
+
+
+# --- students -----------------------------------------------------------------
+
+def student_availability(rng: Random, chances: dict) -> list[str]:
+    """ Early/Late/EarlyLate/blank for each student day, with at least two days filled in """
+    def pick() -> str:
+        day = weighted(rng, chances["Student Days"])
+        return "" if day == "Blank" else day
+
+    days = [pick() for _ in range(STUDENT_DAYS)]
+    while days.count("") > STUDENT_DAYS - 2:
+        days[rng.randrange(STUDENT_DAYS)] = pick()
+    return days
+
+
+def make_students(count: int, rng: Random, names: NamePicker, chances: dict) -> list[list[str]]:
+    rows = []
+    for _ in range(count):
+        first, last = names.pick()
+        year_level = weighted(rng, chances["Year Levels"])
+        location = weighted(rng, chances["Student Location"])
+        rows.append(["placeholder", f"{first.lower()}{last.lower()}@gmail.com", first, last, f"Year {year_level}",
+                     location] + student_availability(rng, chances))
+    return rows
+
+
+# --- tutors -------------------------------------------------------------------
+
+def tutor_year_levels(rng: Random) -> list[str]:
+    """ One to four year levels, mostly 8, in a random preference order """
+    number = rng.randint(1, 100)
+    year_levels = [year for year, divisor in (("8", 2), ("7", 3), ("6", 5)) if number % divisor == 0]
+    if number % 7 == 0 or number % 10 == 0:
+        year_levels.append("5")
+    rng.shuffle(year_levels)
+    return year_levels or ["8"]
+
+
+def tutor_availability(rng: Random) -> list[str]:
+    """ "2"/"1"/blank for the early and late session of each tutor day, with at least two "2"s """
+    def pick() -> str:
+        return rng.choices(["2", "1", ""], weights=[4, 1, 5])[0]
+
+    cells = []
+    for _ in range(TUTOR_DAYS):
+        early = pick()
+        # the late session is usually the same as the early one
+        late = pick() if early == "" else ("" if rng.randint(1, 10) == 10 else early)
+        cells += [early, late]
+
+    while cells.count("2") < 2:
+        cells[rng.randrange(len(cells))] = "2"
+    return cells
+
+
+def maximum_classes(rng: Random, availability: list[str]) -> int:
+    available = availability.count("2")
+    return available if 2 < available <= 4 else rng.randint(4, 12)
+
+
+def make_tutors(students: list[list[str]], rng: Random, names: NamePicker, chances: dict) -> list[list[str]]:
+    """ Add tutors until every year level has roughly enough of them for its students """
+    needed = {year: 0 for year in chances["Year Levels"]}
+    for student in students:
+        needed[student[4].removeprefix("Year ")] += 1
+
+    rows = []
+    while any(count > 0 for count in needed.values()):
+        first, last = names.pick()
+        subject = rng.choice(["Maths", "English"])
+        year_levels = tutor_year_levels(rng)
+        for preference, year in enumerate(year_levels):
+            needed[year] = needed.get(year, 0) - (4 if preference == 0 else 3)
+
+        availability = tutor_availability(rng)
+        location = weighted(rng, chances["Tutor Location"])
+        rows.append(["", f"{first} {last}", subject, "/".join(year_levels), *availability,
+                     str(maximum_classes(rng, availability)), location])
+    return rows
+
+
+# --- files --------------------------------------------------------------------
+
+def write_files(folder: str, student_count: int, seed: int | None = None) -> None:
+    rng = Random(seed)
+    names = NamePicker(rng)
+    chances = load_chances()
+
+    students = make_students(student_count, rng, names, chances)
+    tutors = make_tutors(students, rng, names, chances)
+
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, "student.csv"), "w", newline="") as file:
+        writer = csv.writer(file, lineterminator="\n")
+        writer.writerow(["Timestamp", "Email Address", "First Name", "Last Name"])
+        writer.writerows(students)
+    with open(os.path.join(folder, "tutor.csv"), "w", newline="") as file:
+        writer = csv.writer(file, lineterminator="\n")
+        writer.writerows(TUTOR_HEADER + tutors + TUTOR_FOOTER)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Make a random student.csv and tutor.csv")
+    parser.add_argument("students", type=int, help="how many students to make")
+    parser.add_argument("--out", default=".", help="folder to write the files into (default: here)")
+    parser.add_argument("--seed", type=int, help="make the same files every time")
+    args = parser.parse_args()
+
+    write_files(args.out, args.students, args.seed)
+    print(f"Wrote student.csv and tutor.csv to {os.path.abspath(args.out)}")
+
+
+if __name__ == "__main__":
+    main()
