@@ -1,31 +1,41 @@
 import traceback
 
-from PyQt6 import uic
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QMainWindow
+from PyQt6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
 from src.classes.solution import Solution
 
 
-class LoadingScreen:
+class LoadingScreen(QWidget):
     """ Shows the progress while the timetable is being made """
 
-    window: QMainWindow
+    progress_bar: QProgressBar
+    message: QLabel
 
-    def __init__(self, ui_file: str) -> None:
-        self.window = uic.loadUi(ui_file)
-        self.window.setWindowTitle("Creating Classes...")
+    def __init__(self) -> None:
+        super().__init__()
+        self.setWindowTitle("Creating the timetable")
+        self.setMinimumWidth(440)
+
+        title = QLabel("Creating the timetable")
+        title.setProperty("role", "heading")
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setTextVisible(False)
+        self.message = QLabel()
+        self.message.setProperty("role", "muted")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(32, 28, 32, 28)
+        layout.setSpacing(10)
+        layout.addWidget(title)
+        layout.addWidget(self.progress_bar)
+        layout.addWidget(self.message)
+
         self.set_progress(0, "Loading...")
 
-    def show(self) -> None:
-        self.window.show()
-
-    def close(self) -> None:
-        self.window.close()
-
     def set_progress(self, percent: int, message: str) -> None:
-        self.window.progressBar.setValue(percent)
-        self.window.label.setText(message)
+        self.progress_bar.setValue(percent)
+        self.message.setText(message)
 
 
 class SolutionWorker(QObject):

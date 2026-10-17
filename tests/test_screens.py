@@ -5,6 +5,8 @@ from datetime import datetime
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")      # no real windows while testing
 
 import pytest
+from PyQt6.QtCore import QMimeData, QPointF, Qt, QUrl
+from PyQt6.QtGui import QDropEvent
 from PyQt6.QtWidgets import QApplication, QFileDialog
 
 import main as app_main
@@ -12,9 +14,9 @@ from src.classes.session import TIMES, Session
 from src.classes.solution import Solution
 from src.export import errors_report, timetable_rows
 from src.loader import load_students, load_tutor_sheet
-from src.resources import resource_path
 from src.screens.loading import LoadingScreen
-from src.screens.start import StartScreen
+from src.screens.start import CHOOSE_BOTH, FIX_FILE, READY, StartScreen, dropped_csv
+from src.screens.theme import apply_theme
 from src.screens.timetable import TimetableScreen, class_details
 from tests.conftest import TEST1
 from tests.test_export import read_rows
@@ -24,7 +26,9 @@ CREATED = datetime(2026, 10, 17, 9, 30)
 
 @pytest.fixture(scope="session")
 def app() -> QApplication:
-    return QApplication.instance() or QApplication([])
+    app = QApplication.instance() or QApplication([])
+    apply_theme(app)
+    return app
 
 
 @pytest.fixture
@@ -78,11 +82,11 @@ def test_execute_reports_progress(settings):
 
 
 def test_loading_screen_shows_progress(app):
-    loading = LoadingScreen(resource_path("src/ui_files/loading_screen.ui"))
+    loading = LoadingScreen()
     loading.set_progress(42, "Placing Maths students")
 
-    assert loading.window.progressBar.value() == 42
-    assert loading.window.label.text() == "Placing Maths students"
+    assert loading.progress_bar.value() == 42
+    assert loading.message.text() == "Placing Maths students"
 
 
 # --- the timetable screen -----------------------------------------------------
@@ -182,38 +186,160 @@ def test_save_failure_is_reported(screen, monkeypatch, tmp_path):
     assert screen.status.text().startswith("Could not save timetable.csv")
 
 
+# --- the start screen ---------------------------------------------------------
+
+@pytest.fixture
+def start(app, settings) -> StartScreen:
+    start = StartScreen(settings)
+    yield start
+    start.close()
+
+
+def answer_open_dialog(monkeypatch, path) -> list:
+    """ Make the open dialog choose `path` ("" = cancel). Returns the folders it was opened in """
+    opened = []
+    def fake_dialog(parent, title, folder, file_filter):
+        opened.append(folder)
+        return str(path), file_filter
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", fake_dialog)
+    return opened
+
+
+def test_nothing_chosen_yet(start):
+    assert not start.create_button.isEnabled()
+    assert start.message.text() == CHOOSE_BOTH
+    for card in (start.student_card, start.tutor_card):
+        assert card.status.text() == "No file chosen"
+        assert card.file_label.full_text == card.description
+        assert card.button.text() == "Choose file…"
+
+
+def test_choosing_files_shows_the_name_not_the_path(start, settings):
+    start.student_card.set_file(str(TEST1 / "student.csv"))
+
+    card = start.student_card
+    assert card.ok and card.file_label.full_text == "student.csv"
+    assert card.file_label.toolTip() == str(TEST1 / "student.csv")
+    assert card.status.text() == f"{len(load_students(str(TEST1 / 'student.csv'), settings))} students"
+    assert card.badge.text() == "✓" and card.button.text() == "Change…"
+    assert not start.create_button.isEnabled()
+
+    start.tutor_card.set_file(str(TEST1 / "tutor.csv"))
+
+    tutors, rooms = load_tutor_sheet(str(TEST1 / "tutor.csv"), settings)
+    assert start.tutor_card.status.text() == f"{len(tutors)} tutors · {len(rooms)} rooms"
+    assert start.create_button.isEnabled()
+    assert start.message.text() == READY
+    assert start.get_files() == (str(TEST1 / "student.csv"), str(TEST1 / "tutor.csv"))
+
+
+def test_the_wrong_file_is_marked_straight_away(start):
+    start.tutor_card.set_file(str(TEST1 / "tutor.csv"))
+    start.student_card.set_file(str(TEST1 / "tutor.csv"))
+
+    card = start.student_card
+    assert not card.ok
+    assert card.status.text() == "Incorrect Student file"
+    assert card.badge.text() == "!" and card.property("state") == "error"
+    assert not start.create_button.isEnabled()
+    assert start.message.text() == FIX_FILE
+
+
+def test_long_file_names_are_shortened(app, start, tmp_path):
+    path = tmp_path / ("Student Availability Form (Responses) - Form responses 1" * 3 + ".csv")
+    path.write_text((TEST1 / "student.csv").read_text())
+    start.show()
+
+    start.student_card.set_file(str(path))
+    app.processEvents()
+
+    label = start.student_card.file_label
+    assert label.text() != label.full_text and label.text().endswith(".csv")
+    assert start.width() < 800
+
+
+def test_browse_opens_in_the_last_folder(start, monkeypatch, tmp_path):
+    opened = answer_open_dialog(monkeypatch, TEST1 / "tutor.csv")
+    start.tutor_card.button.click()
+    start.student_card.button.click()
+
+    assert opened == ["", str(TEST1)]
+
+
+def test_cancelled_browse_keeps_the_file(start, monkeypatch):
+    start.student_card.set_file(str(TEST1 / "student.csv"))
+    answer_open_dialog(monkeypatch, "")
+
+    start.student_card.button.click()
+
+    assert start.student_card.ok and start.student_card.path == str(TEST1 / "student.csv")
+
+
+def test_dropping_a_csv_on_a_card(start):
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(str(TEST1 / "tutor.csv"))])
+    event = QDropEvent(QPointF(10, 10), Qt.DropAction.CopyAction, mime, Qt.MouseButton.NoButton,
+                       Qt.KeyboardModifier.NoModifier)
+
+    start.tutor_card.dropEvent(event)
+
+    assert start.tutor_card.ok and start.tutor_card.path == str(TEST1 / "tutor.csv")
+
+
+@pytest.mark.parametrize("names, expected", [
+    (["student.csv"], "student.csv"),
+    (["STUDENT.CSV"], "STUDENT.CSV"),
+    (["notes.txt"], ""),
+    (["a.csv", "b.csv"], ""),
+])
+def test_only_single_csv_files_can_be_dropped(tmp_path, names, expected):
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(str(tmp_path / name)) for name in names])
+    assert dropped_csv(mime) == (str(tmp_path / expected) if expected else "")
+
+
+def test_choosing_a_file_clears_an_old_error(start):
+    start.show_error("Something went wrong making the timetable: boom")
+    assert start.message.property("state") == "error"
+
+    start.student_card.set_file(str(TEST1 / "student.csv"))
+
+    assert start.message.text() == CHOOSE_BOTH
+    assert start.message.property("state") == ""
+
+
 # --- the whole app ------------------------------------------------------------
 
 @pytest.fixture
 def controller(app, settings):
-    start = StartScreen(resource_path("src/ui_files/start_screen.ui"))
-    loading = LoadingScreen(resource_path("src/ui_files/loading_screen.ui"))
+    start = StartScreen(settings)
+    loading = LoadingScreen()
     controller = app_main.Main(settings, start, loading)
     start.show()
     yield controller
 
     if controller.thread is not None:
         controller.thread.wait()
-    for window in (start.window, loading.window, controller.timetable_screen):
+    for window in (start, loading, controller.timetable_screen):
         if window is not None:
             window.close()
 
 
 def choose_files(controller, student_csv, tutor_csv) -> None:
-    controller.start_screen.student_csv = str(student_csv)
-    controller.start_screen.tutor_csv = str(tutor_csv)
+    controller.start_screen.student_card.set_file(str(student_csv))
+    controller.start_screen.tutor_card.set_file(str(tutor_csv))
 
 
 def test_create_shows_the_timetable(app, controller):
     choose_files(controller, TEST1 / "student.csv", TEST1 / "tutor.csv")
 
-    controller.start_screen.window.CreateTimetableButton.click()
-    assert not controller.start_screen.window.isVisible()
+    controller.start_screen.create_button.click()
+    assert not controller.start_screen.isVisible()
     wait_until(app, lambda: controller.timetable_screen is not None)
 
     assert controller.timetable_screen.isVisible()
-    assert not controller.loading_screen.window.isVisible()
-    assert controller.loading_screen.window.progressBar.value() == 100
+    assert not controller.loading_screen.isVisible()
+    assert controller.loading_screen.progress_bar.value() == 100
     assert controller.timetable_screen.save_folder == str(TEST1)
     assert len(controller.timetable_screen.cells) == len(controller.solution.schedule.classes) > 0
 
@@ -223,9 +349,9 @@ def test_bad_files_stay_on_the_start_screen(app, controller):
 
     controller.create_timetable()
 
-    assert controller.start_screen.window.infoTextLabel.text() == "Incorrect Student file"
+    assert controller.start_screen.message.text() == "Incorrect Student file"
     assert controller.thread is None
-    assert controller.start_screen.window.isVisible()
+    assert controller.start_screen.isVisible()
 
 
 def test_a_crash_goes_back_to_the_start_screen(app, controller, monkeypatch):
@@ -235,8 +361,8 @@ def test_a_crash_goes_back_to_the_start_screen(app, controller, monkeypatch):
     choose_files(controller, TEST1 / "student.csv", TEST1 / "tutor.csv")
 
     controller.create_timetable()
-    wait_until(app, lambda: controller.start_screen.window.isVisible())
+    wait_until(app, lambda: controller.start_screen.isVisible())
 
-    assert controller.start_screen.window.infoTextLabel.text() == "Something went wrong making the timetable: boom"
-    assert not controller.loading_screen.window.isVisible()
+    assert controller.start_screen.message.text() == "Something went wrong making the timetable: boom"
+    assert not controller.loading_screen.isVisible()
     assert controller.timetable_screen is None

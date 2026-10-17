@@ -4,7 +4,6 @@ from typing import Callable
 from html import escape
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (QAbstractItemView, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QPushButton,
                              QTableWidget, QTableWidgetItem, QWidget)
 
@@ -14,30 +13,6 @@ from src.classes.solution import Solution
 from src.classes.timetable_class import Class
 from src.config import Settings
 from src.export import display_name, write_errors, write_timetable
-
-BUTTON_STYLE = """
-    QPushButton {
-        color: black;
-        background-color: #87E2E8;
-        border-style: outset;
-        border-radius: 10px;
-        min-width: 8em;
-        padding: 6px;
-    }
-    QPushButton:hover {
-        background-color: #9bf6fc;
-    }
-    QPushButton:pressed {
-        background-color: #73ced4;
-        border-style: inset;
-    }
-    QToolTip {
-        padding: 2px;
-        border-width: 1px;
-        border-radius: 5px;
-    }
-    """
-
 
 class TimetableScreen(QWidget):
     """ The finished timetable: a row for each session and a column for each room, then the online classes """
@@ -64,7 +39,6 @@ class TimetableScreen(QWidget):
 
         self.details = QLabel("")
         self.details.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        self.details.setFont(QFont("Nunito Sans"))
         self.details.setMinimumWidth(180)
 
         self.status = QLabel(self.missing_summary())
@@ -73,6 +47,7 @@ class TimetableScreen(QWidget):
                                                 self.save_errors)
         self.csv_button = self.create_button("Download as CSV", "Download the timetable into a csv",
                                              self.save_timetable)
+        self.csv_button.setProperty("primary", True)
 
         buttons = QHBoxLayout()
         buttons.addWidget(self.status, stretch=1)
@@ -158,7 +133,7 @@ class TimetableScreen(QWidget):
     def create_button(text: str, tooltip: str, callback: Callable[[], None]) -> QPushButton:
         button = QPushButton(text)
         button.setToolTip(tooltip)
-        button.setStyleSheet(BUTTON_STYLE)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.clicked.connect(lambda: callback())
         return button
 
