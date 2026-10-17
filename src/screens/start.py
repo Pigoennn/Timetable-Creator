@@ -50,6 +50,9 @@ class StartScreen:
     def show(self) -> None:
         self.window.show()
 
+    def hide(self) -> None:
+        self.window.hide()
+
     def connect_create(self, callback: Callable[[], None]) -> None:
         """ Run `callback` when the Create Timetable button is clicked """
         self.window.CreateTimetableButton.clicked.connect(lambda: callback())

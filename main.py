@@ -2,14 +2,16 @@ import os
 import sys
 from datetime import datetime
 
+from PyQt6.QtCore import QThread
 from PyQt6.QtWidgets import QApplication
 
 from src.classes.solution import Solution
 from src.config import Settings, load_settings
-from src.export import write_errors, write_timetable
 from src.loader import LoaderError, load_students, load_tutor_sheet, verify_files
 from src.resources import resource_path
+from src.screens.loading import LoadingScreen, SolutionWorker
 from src.screens.start import StartScreen
+from src.screens.timetable import TimetableScreen
 
 
 class Main:
@@ -17,13 +19,29 @@ class Main:
 
     settings: Settings
     start_screen: StartScreen
+    loading_screen: LoadingScreen
+    timetable_screen: TimetableScreen | None
 
-    def __init__(self, settings: Settings, start_screen: StartScreen) -> None:
+    solution: Solution | None
+    save_folder: str
+    thread: QThread | None
+    worker: SolutionWorker | None
+
+    def __init__(self, settings: Settings, start_screen: StartScreen, loading_screen: LoadingScreen) -> None:
         self.settings = settings
         self.start_screen = start_screen
+        self.loading_screen = loading_screen
+        self.timetable_screen = None
+
+        self.solution = None
+        self.save_folder = ""
+        self.thread = None
+        self.worker = None
+
         self.start_screen.connect_create(self.create_timetable)
 
     def create_timetable(self) -> None:
+        """ Check and load the chosen files, then make the timetable on a background thread """
         student_csv, tutor_csv = self.start_screen.get_files()
 
         error = verify_files(student_csv, tutor_csv)
@@ -38,19 +56,37 @@ class Main:
             self.start_screen.set_info_label(str(error))
             return
 
-        solution = Solution(self.settings)
-        solution.setup(students, tutors, rooms)
-        solution.execute()
+        self.solution = Solution(self.settings)
+        self.solution.setup(students, tutors, rooms)
+        self.save_folder = os.path.dirname(student_csv)
 
-        # TODO: show the loading and timetable screens, and save the CSV from there (phase 6)
-        folder = os.path.dirname(student_csv)
-        write_timetable(os.path.join(folder, "timetable.csv"), solution.schedule, self.settings)
-        write_errors(os.path.join(folder, "Errors.txt"), students, tutors, datetime.now())
+        self.start_screen.hide()
+        self.loading_screen.set_progress(0, "Loading...")
+        self.loading_screen.show()
 
-        missing = sum(1 for student in students if student.unplaceable)
-        self.start_screen.set_info_label(f"Created {len(solution.schedule.classes)} classes for {len(students)} "
-                                         f"students. {missing} students are missing a class. "
-                                         f"Saved timetable.csv and Errors.txt next to the student file")
+        # the worker lives on the thread, so its signals reach the screens through the event loop
+        self.thread = QThread()
+        self.worker = SolutionWorker(self.solution)
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+        self.worker.progress.connect(self.loading_screen.set_progress)
+        self.worker.finished.connect(self.show_timetable)
+        self.worker.failed.connect(self.show_failure)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.failed.connect(self.thread.quit)
+
+        self.thread.start()
+
+    def show_timetable(self) -> None:
+        self.timetable_screen = TimetableScreen(self.solution, self.settings, self.save_folder, datetime.now())
+        self.loading_screen.close()
+        self.timetable_screen.show()
+
+    def show_failure(self, message: str) -> None:
+        self.loading_screen.close()
+        self.start_screen.set_info_label(message)
+        self.start_screen.show()
 
 
 def main() -> None:
@@ -58,7 +94,8 @@ def main() -> None:
 
     settings = load_settings(resource_path("settings.txt"))
     start_screen = StartScreen(resource_path("src/ui_files/start_screen.ui"))
-    controller = Main(settings, start_screen)
+    loading_screen = LoadingScreen(resource_path("src/ui_files/loading_screen.ui"))
+    controller = Main(settings, start_screen, loading_screen)
 
     start_screen.show()
     sys.exit(app.exec())

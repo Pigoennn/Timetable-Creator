@@ -1,147 +1,179 @@
-from PyQt6.QtWidgets import *
+import os
+from datetime import datetime
+from typing import Callable
+from html import escape
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import (QAbstractItemView, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QPushButton,
+                             QTableWidget, QTableWidgetItem, QWidget)
 
-class FinalWindow(QWidget):
-    maindictionary = {} # Dictionary of class indexes/pointers
-    classList = [] # List of classroom objects
-    studentList = [] # List of student objects
-    tutorList = [] # List of tutor objects
-    earlylatetimes = {} # Class timings
+from src.classes.schedule import ONLINE
+from src.classes.session import TIMES, Session
+from src.classes.solution import Solution
+from src.classes.timetable_class import Class
+from src.config import Settings
+from src.export import display_name, write_errors, write_timetable
 
-    def __init__(self, numberofdays, maxnumberofclasses):
-        super().__init__() # Super initiation
+BUTTON_STYLE = """
+    QPushButton {
+        color: black;
+        background-color: #87E2E8;
+        border-style: outset;
+        border-radius: 10px;
+        min-width: 8em;
+        padding: 6px;
+    }
+    QPushButton:hover {
+        background-color: #9bf6fc;
+    }
+    QPushButton:pressed {
+        background-color: #73ced4;
+        border-style: inset;
+    }
+    QToolTip {
+        padding: 2px;
+        border-width: 1px;
+        border-radius: 5px;
+    }
+    """
 
-        self.setWindowTitle("Timetable") # Set the title
-        self.daylist = numberofdays # List of all possible days to be displayed
-        self.createTable(numberofdays, maxnumberofclasses) # Create a table
-        self.createInfoLabel() # Create an information label
-        self.createPushButton() # Create a push button
-        self.resize(920,480) # Resize the button
 
-        self.show() # SHOW THYSELF
+class TimetableScreen(QWidget):
+    """ The finished timetable: a row for each session and a column for each room, then the online classes """
 
-        self.grid = QGridLayout() # Grid Layout
-        # Add all the items to the grid
-        self.grid.addWidget(self.table,0,0)
-        self.grid.addWidget(self.button,1,0,alignment = Qt.AlignmentFlag.AlignRight)
-        self.grid.addWidget(self.info,0,1)
-        self.grid.setColumnStretch(0,1)
-        self.grid.setColumnMinimumWidth(1,100)
-         # Find way to put button on the right
+    solution: Solution
+    settings: Settings
+    save_folder: str                        # where the save dialogs start
+    created: datetime
 
-        self.setLayout(self.grid)
+    sessions: list[Session]                 # one per row
+    cells: dict[tuple[int, int], Class]     # (row, column) -> the class shown there
 
-        # Run a function when a cell is selected
-        self.table.selectionModel().selectionChanged.connect(self.onSelection)
-    
-    def onSelection(self, selected): # Used to change info label when cell is clicked
-        # Run a try just in case a header was clicked or the cell has "None" attached to it
-        try:
-            cell = selected.indexes()[0]    # Get the last clicked box
-            cell = [cell.row(), cell.column()]  # Obtain [row,column] position
-            classname = self.table.item(cell[0],cell[1]).text()
-            for classroom in FinalWindow.classList:
-                if classroom.name == classname:
-                    return self.setInfoLabel(classroom)
-            return self.clearinfolabel()
-        except IndexError: # If header clicked
-            pass
-        except AttributeError: # If empty cell
-            self.clearinfolabel()
+    def __init__(self, solution: Solution, settings: Settings, save_folder: str, created: datetime) -> None:
+        super().__init__()
+        self.solution = solution
+        self.settings = settings
+        self.save_folder = save_folder
+        self.created = created
 
-    def clearinfolabel(self): # Clear the info Label
-        self.info.setText("")
+        self.setWindowTitle("Timetable")
+        self.resize(920, 480)
 
-    def setInfoLabel(self, focusclass: object): 
-        infoList = []
-        time = FinalWindow.earlylatetimes["Weekday" if focusclass.day in ["Monday","Tuesday","Wednesday","Thursday","Friday"] else "Weekend"][focusclass.subject][focusclass.time]
-        time = time.split(" - ")
-        infoList.append(f'<h3>{focusclass.day}</h3>') # Day
-        infoList.append(f'<h4>{time[0]}</h4>')  # Time Start
-        infoList.append(f'<h5>-</h5>')
-        infoList.append(f'<h4>{time[1]}</h4>') # Time End
-        infoList.append('<h4>ㅤ</h4>')
-        infoList.append(f'<h4>SEL{focusclass.yearlevel}</h4>') # Year Level
-        infoList.append(f'<h4>{focusclass.subject}</h4>') # Subject
-        infoList.append(f'<h4>{FinalWindow.tutorList[focusclass.students[0]].name}</h4>') # Tutor
-        infoList.append("ㅤ")
-        # Students
-        for student in focusclass.students[1:]:
-            infoList.append(f'<h5>{FinalWindow.studentList[student].name}</h5>')
-        information = '\n'.join(infoList)
-        self.info.setText(information) # Change the info label
+        self.create_table()
 
-    def createInfoLabel(self): # Create the info label
-        self.info = QLabel("")
-        self.info.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        self.info.setFont(QFont("Nunito Sans"))
+        self.details = QLabel("")
+        self.details.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.details.setFont(QFont("Nunito Sans"))
+        self.details.setMinimumWidth(180)
 
-    def createPushButton(self): # Create the push button
-        self.button = QPushButton("Download as CSV")
-        self.button.setFixedSize(130,30)
-        self.button.setToolTip("Download the timetable into a csv")
-        # Style sheet
-        self.button.setStyleSheet('''
-        QPushButton {
-            color: black;
-            background-color: #87E2E8;
-            border-style: outset;
-            border-radius: 10px;
-            min-width: 8em;
-            padding: 6px;
-        }
-        QPushButton:hover {
-            background-color: #9bf6fc;
-        }
-        QPushButton:pressed {
-            background-color: #73ced4;
-            border-style: inset;
-        }
-        QToolTip {
-            padding: 2px;
-            border-width: 1px;
-            border-radius: 5px;
-        }
-        ''')
+        self.status = QLabel(self.missing_summary())
 
-    def createTable(self, numberofdays: list, maxnumberofclasses: list): # Create the table that will be displayed
-        # Create a table
-        self.table = QTableWidget(len(numberofdays) * 2, len(maxnumberofclasses)) # Set the number of rows and columns based on the number of classes and max number of rooms
-        self.table.setShowGrid(True) # Show grid lines
-        for i in range(self.table.rowCount()):
-            self.table.setRowHeight(i,40) # Change size of each row
-        for i in range(self.table.columnCount()):
-            self.table.setColumnWidth(i,100) # Change size of each column
-        self.table.setEditTriggers(QAbstractItemView.EditTrigger(0)) # Turn off editing
+        self.errors_button = self.create_button("Save Errors.txt", "Save the students who didn't get a class",
+                                                self.save_errors)
+        self.csv_button = self.create_button("Download as CSV", "Download the timetable into a csv",
+                                             self.save_timetable)
+
+        buttons = QHBoxLayout()
+        buttons.addWidget(self.status, stretch=1)
+        buttons.addWidget(self.errors_button)
+        buttons.addWidget(self.csv_button)
+
+        grid = QGridLayout()
+        grid.addWidget(self.table, 0, 0)
+        grid.addWidget(self.details, 0, 1)
+        grid.addLayout(buttons, 1, 0, 1, 2)
+        grid.setColumnStretch(0, 1)
+        self.setLayout(grid)
+
+    # --- the table ------------------------------------------------------------
+
+    def create_table(self) -> None:
+        schedule = self.solution.schedule
+        self.sessions = [Session(day, time) for day in self.settings.student_days for time in TIMES]
+        online_columns = max((len(schedule.online_at(session)) for session in self.sessions), default=0)
+
+        self.table = QTableWidget(len(self.sessions), len(schedule.rooms) + online_columns)
+        self.table.setHorizontalHeaderLabels(schedule.rooms + [ONLINE] * online_columns)
+        self.table.setVerticalHeaderLabels([f"{session.day} {session.time}" for session in self.sessions])
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setDragEnabled(False)
         self.table.setAlternatingRowColors(True)
-        templist = list(maxnumberofclasses) # Represents the columns
-        for i in templist:
-            if "Online" in i:
-                templist[templist.index(i)] = "Online"
-        self.table.setHorizontalHeaderLabels(templist) # Title header for the columns
-        daylist = list(numberofdays)
-        for i in daylist: # Add a blank item after each non-blank item
-            if i != "":
-                daylist.insert(daylist.index(i) + 1,"")
-        # For the day printing later
-        self.table.setVerticalHeaderLabels(daylist) # Title header for the rows
-        row = -1
-        # Add the class that is in the respective room at the respective time 
-        for day in FinalWindow.maindictionary.keys():
-            if day in daylist:    
-                for session in FinalWindow.maindictionary[day].keys():
-                    # Set the row and column
-                    row += 1
-                    column = 0 
-                    for room in FinalWindow.maindictionary[day][session].keys():
-                        # Check if each class has more than two students meaning it is viable
-                        if len(FinalWindow.classList[FinalWindow.maindictionary[day][session][room]].students) >= 2:
-                            # Add the name of the class to the item in the row and column and set the alignment to middle 
-                            self.table.setItem(row, column, QTableWidgetItem(FinalWindow.classList[FinalWindow.maindictionary[day][session][room]].name))
-                            self.table.item(row, column).setTextAlignment(Qt.AlignmentFlag.AlignVCenter + Qt.AlignmentFlag.AlignHCenter)
-                        else:
-                            # If not, set it as empty cell
-                            self.table.setItem(row, column, QTableWidgetItem(""))
-                        column += 1 # Next column
+
+        self.cells = {}
+        for row, session in enumerate(self.sessions):
+            self.table.setRowHeight(row, 40)
+            for column, classroom in enumerate(schedule.rooms_at(session) + schedule.online_at(session)):
+                if classroom is None:
+                    continue
+                item = QTableWidgetItem(classroom.name)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.table.setItem(row, column, item)
+                self.cells[(row, column)] = classroom
+
+        for column in range(self.table.columnCount()):
+            self.table.setColumnWidth(column, 100)
+
+        self.table.currentCellChanged.connect(lambda row, column, *_: self.show_details(row, column))
+
+    def show_details(self, row: int, column: int) -> None:
+        """ Show the class in the cell beside the table, or nothing for an empty cell """
+        classroom = self.cells.get((row, column))
+        self.details.setText(class_details(classroom, self.settings) if classroom else "")
+
+    # --- saving ---------------------------------------------------------------
+
+    def missing_summary(self) -> str:
+        missing = sum(1 for student in self.solution.students if student.unplaceable)
+        if missing == 0:
+            return "Every student has their classes"
+        return f"{missing} student{'s' if missing != 1 else ''} did not get every class (see Errors.txt)"
+
+    def save_timetable(self) -> None:
+        path = self.ask_save_path("Save the timetable", "timetable.csv", "CSV File (*.csv)")
+        if path:
+            self.save(path, lambda: write_timetable(path, self.solution.schedule, self.settings))
+
+    def save_errors(self) -> None:
+        path = self.ask_save_path("Save the errors", "Errors.txt", "Text File (*.txt)")
+        if path:
+            self.save(path, lambda: write_errors(path, self.solution.students, self.solution.tutors, self.created))
+
+    def ask_save_path(self, title: str, file_name: str, file_filter: str) -> str:
+        """ The chosen path, or "" if the dialog was cancelled """
+        path, _ = QFileDialog.getSaveFileName(self, title, os.path.join(self.save_folder, file_name), file_filter)
+        return path
+
+    def save(self, path: str, write: Callable[[], None]) -> None:
+        try:
+            write()
+        except OSError as error:
+            self.status.setText(f"Could not save {os.path.basename(path)}: {error.strerror}")
+            return
+        self.save_folder = os.path.dirname(path)
+        self.status.setText(f"Saved {os.path.basename(path)}")
+
+    @staticmethod
+    def create_button(text: str, tooltip: str, callback: Callable[[], None]) -> QPushButton:
+        button = QPushButton(text)
+        button.setToolTip(tooltip)
+        button.setStyleSheet(BUTTON_STYLE)
+        button.clicked.connect(lambda: callback())
+        return button
+
+
+def class_details(classroom: Class, settings: Settings) -> str:
+    """ Rich text describing a class, for the label beside the table """
+    session = classroom.session
+
+    lines = [
+        f"<h3>{escape(classroom.name)}</h3>",
+        f"<h4>{session.day}<br>{settings.class_time(session.day, classroom.subject, session.time)}</h4>",
+        f"<p>Year {escape(classroom.year_level)} {classroom.subject}<br>"
+        f"Tutor: {escape(classroom.tutor.name)}<br>"
+        f"Room: {escape(ONLINE if classroom.online else classroom.room)}</p>",
+        f"<p><b>Students ({len(classroom.students)}/{settings.class_size})</b><br>"
+        + "<br>".join(escape(display_name(student)) for student in classroom.students) + "</p>",
+    ]
+    return "\n".join(lines)

@@ -1,5 +1,2 @@
 __pycache__/
 .venv/
-# written next to the student file when the app runs on the test data
-/testing/test*/timetable.csv
-/testing/test*/Errors.txt

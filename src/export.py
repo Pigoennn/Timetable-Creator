@@ -57,8 +57,7 @@ def timetable_rows(schedule: Schedule, settings: Settings) -> list[list[str]]:
 def class_cells(classroom: Class, settings: Settings) -> list[str]:
     """ One class's column, top to bottom """
     session = classroom.session
-    students = [student.name + (ONLINE_STUDENT_SUFFIX if student.location == ONLINE else "")
-                for student in classroom.students]
+    students = [display_name(student) for student in classroom.students]
 
     return [
         classroom.name,
@@ -67,6 +66,11 @@ def class_cells(classroom: Class, settings: Settings) -> list[str]:
         ONLINE if classroom.online else classroom.room,
         f"Normal {classroom.year_level}",
     ] + students + [""] * (settings.class_size - len(students))
+
+
+def display_name(student: Student) -> str:
+    """ The student's name, marked if they're mainly online (useful for the admin team) """
+    return student.name + (ONLINE_STUDENT_SUFFIX if student.location == ONLINE else "")
 
 
 # --- Errors.txt ---------------------------------------------------------------

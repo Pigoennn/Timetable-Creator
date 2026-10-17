@@ -1,7 +1,7 @@
 from collections import Counter, deque
 from math import ceil
 from random import Random
-from typing import NamedTuple
+from typing import Callable, NamedTuple
 
 from src.config import SUBJECTS, Settings
 from src.classes.schedule import ONLINE, Schedule
@@ -12,6 +12,12 @@ from src.classes.timetable_class import Class
 from src.classes.tutor import Availability, Tutor
 
 SURPLUS_STUDENTS_PER_ROUND = 50     # one round of surplus classes for every this many students
+
+Progress = Callable[[int, str], None]   # (percent, what's happening)
+
+# roughly how far through a run each stage starts, by how long they take
+PLACING_STARTS = 15
+TIDYING_STARTS = 95
 
 
 class Rung(NamedTuple):
@@ -46,6 +52,9 @@ class Solution:
     classes_needed: dict[tuple[str, str], int]              # (year level, subject) -> classes to create up front
     _available_students: Counter[tuple[str, Session]]       # (year level, session) -> students available then
 
+    _progress: Progress
+    _last_progress: tuple[int, str] | None
+
     def __init__(self, settings: Settings, seed: int | None = None) -> None:
         self.settings = settings
         self.rng = Random(seed)             # seeded so a run can be repeated
@@ -57,6 +66,9 @@ class Solution:
         self.classes_needed = {}
         self._available_students = Counter()
 
+        self._progress = lambda percent, message: None
+        self._last_progress = None
+
     def setup(self, students: list[Student], tutors: list[Tutor], rooms: list[str]) -> None:
         """ Give the solution the loaded students, tutors and rooms (see src/loader.py) """
         self.students = students
@@ -67,12 +79,24 @@ class Solution:
             (student.year_level, session) for student in students for session in student.availability
         )
 
-    def execute(self) -> None:
-        """ Build the timetable """
+    def execute(self, progress: Progress | None = None) -> None:
+        """ Build the timetable. `progress` is called with (percent, message) as it goes """
+        if progress is not None:
+            self._progress = progress
+
+        self._report(0, "Creating classes")
         self.create_classes()
         self.place_students()
+        self._report(TIDYING_STARTS, "Tidying up")
         self.fill_gaps()
         self.tidy_up()
+        self._report(100, "Done")
+
+    def _report(self, percent: int, message: str) -> None:
+        """ Pass progress on, skipping repeats """
+        if (percent, message) != self._last_progress:
+            self._last_progress = (percent, message)
+            self._progress(percent, message)
 
     def tidy_up(self) -> None:
         """ Improve the finished timetable, then name the classes (see src/classes/tidy_up.py) """
@@ -255,17 +279,25 @@ class Solution:
 
     def place_students(self) -> None:
         """ Place every student into the classes created so far, one subject at a time """
-        for subject in SUBJECTS:
-            self._place_subject(subject)
+        for number, subject in enumerate(SUBJECTS):
+            self._place_subject(subject, done=number / len(SUBJECTS))
 
-    def _place_subject(self, subject: str) -> None:
+    def _place_subject(self, subject: str, done: float = 0) -> None:
         """
         Deferred acceptance: students ask for their favourite class first. A class that is over-full
         keeps the students with the fewest other options, and bumps the rest to ask for their next choice.
         Students who run out of choices are left for the backup classes.
+        `done` is the fraction of all placing finished before this subject, for the progress.
         """
         students = [student for student in self.students if student.needs_class(subject)]
-        choices = {student: self._class_choices(student, subject) for student in students}
+
+        # working out the choices is the slow part of a run
+        choices = {}
+        for count, student in enumerate(students):
+            choices[student] = self._class_choices(student, subject)
+            fraction = done + count / len(students) / len(SUBJECTS)
+            self._report(PLACING_STARTS + int((TIDYING_STARTS - PLACING_STARTS) * fraction),
+                         f"Placing {subject} students")
 
         # classes would rather have students with fewer choices; ties are random so nobody is always bumped
         tie_break = {student: self.rng.random() for student in students}
