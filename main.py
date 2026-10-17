@@ -11,6 +11,7 @@ from src.loader import LoaderError, load_students, load_tutor_sheet, verify_file
 from src.resources import resource_path
 from src.screens.loading import LoadingScreen, SolutionWorker
 from src.screens.start import StartScreen
+from src.screens.theme import apply_theme
 from src.screens.timetable import TimetableScreen
 
 
@@ -38,7 +39,7 @@ class Main:
         self.thread = None
         self.worker = None
 
-        self.start_screen.connect_create(self.create_timetable)
+        self.start_screen.create_button.clicked.connect(lambda: self.create_timetable())
 
     def create_timetable(self) -> None:
         """ Check and load the chosen files, then make the timetable on a background thread """
@@ -46,14 +47,14 @@ class Main:
 
         error = verify_files(student_csv, tutor_csv)
         if error:
-            self.start_screen.set_info_label(error)
+            self.start_screen.show_error(error)
             return
 
         try:
             students = load_students(student_csv, self.settings)
             tutors, rooms = load_tutor_sheet(tutor_csv, self.settings)
         except LoaderError as error:
-            self.start_screen.set_info_label(str(error))
+            self.start_screen.show_error(str(error))
             return
 
         self.solution = Solution(self.settings)
@@ -85,19 +86,18 @@ class Main:
 
     def show_failure(self, message: str) -> None:
         self.loading_screen.close()
-        self.start_screen.set_info_label(message)
+        self.start_screen.show_error(message)
         self.start_screen.show()
 
 
 def main() -> None:
     app = QApplication(sys.argv)
+    apply_theme(app)
 
     settings = load_settings(resource_path("settings.txt"))
-    start_screen = StartScreen(resource_path("src/ui_files/start_screen.ui"))
-    loading_screen = LoadingScreen(resource_path("src/ui_files/loading_screen.ui"))
-    controller = Main(settings, start_screen, loading_screen)
+    controller = Main(settings, StartScreen(settings), LoadingScreen())
 
-    start_screen.show()
+    controller.start_screen.show()
     sys.exit(app.exec())
 
 

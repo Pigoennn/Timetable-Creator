@@ -1,7 +1,7 @@
 import csv
 import os
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import TextIO
 
 from src.config import SUBJECTS, Settings
@@ -34,17 +34,25 @@ def verify_files(student_csv: str, tutor_csv: str) -> str:
     if not tutor_csv:
         return "Please select a Tutor CSV file"
 
-    for path, verify in ((tutor_csv, _verify_tutor_file), (student_csv, _verify_student_file)):
-        try:
-            with open(path, newline="", encoding="utf-8-sig") as file:
-                error = verify(file)
-        except (OSError, UnicodeDecodeError):
-            return f"Could not read {os.path.basename(path)}"
+    return verify_tutor_file(tutor_csv) or verify_student_file(student_csv)
 
-        if error:
-            return error
 
-    return ""
+def verify_student_file(student_csv: str) -> str:
+    """ Check one file looks like the student form responses. Returns an error message, or "" """
+    return _verify(student_csv, _verify_student_file)
+
+
+def verify_tutor_file(tutor_csv: str) -> str:
+    """ Check one file looks like the tutor availability sheet. Returns an error message, or "" """
+    return _verify(tutor_csv, _verify_tutor_file)
+
+
+def _verify(path: str, verify: Callable[[TextIO], str]) -> str:
+    try:
+        with open(path, newline="", encoding="utf-8-sig") as file:
+            return verify(file)
+    except (OSError, UnicodeDecodeError):
+        return f"Could not read {os.path.basename(path)}"
 
 
 def _verify_tutor_file(file: TextIO) -> str:

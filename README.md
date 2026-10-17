@@ -13,7 +13,9 @@ python -m venv .venv
 .venv/bin/python main.py
 ```
 
-1. Choose the student CSV and the tutor CSV, then press **Create Timetable**.
+1. Choose the student CSV and the tutor CSV (or drag them onto their boxes). Each file is checked straight away:
+   a green tick shows how many students or tutors it has, and a red box says what's wrong with it.
+   **Create Timetable** turns on once both files look right.
 2. A progress bar shows while the classes are made. Small centres take well under a second, around 1,000 students
    takes about 15 seconds.
 3. The timetable has a row for each day and session and a column for each room, then the online classes.
@@ -59,8 +61,7 @@ src/
   loader.py             checks and reads the CSV files
   export.py             writes the timetable CSV and Errors.txt
   classes/              the models and the scheduling (no Qt in here)
-  screens/              start, loading and timetable screens
-  ui_files/             Qt Designer files
+  screens/              start, loading and timetable screens, and the colour theme
 tests/                  pytest suite
 testing/                sample data and the random data generator
 ```
