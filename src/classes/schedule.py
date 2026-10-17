@@ -36,3 +36,11 @@ class Schedule:
         tutor.classes.append(classroom)
         self.classes.append(classroom)
         return classroom
+
+    def remove_class(self, classroom: Class) -> None:
+        """ Delete a class. Any students in it lose their place """
+        for student in list(classroom.students):
+            classroom.remove_student(student)
+
+        classroom.tutor.classes.remove(classroom)
+        self.classes.remove(classroom)

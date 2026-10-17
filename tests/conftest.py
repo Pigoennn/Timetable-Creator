@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 
+from src.classes.session import Session
+from src.classes.tutor import Availability, Tutor
 from src.config import Settings, load_settings
 from src.resources import resource_path
 
@@ -46,3 +48,8 @@ def write_tutors(tmp_path):
         path.write_text(header + "".join(row + "\n" for row in rows) + footer)
         return str(path)
     return write
+
+
+def make_tutor(name: str, subject: str, year_levels: list[str], availability: dict[Session, Availability],
+               maximum: int = 4, location: str = "In-Person") -> Tutor:
+    return Tutor(name, subject, year_levels, availability, maximum, location)

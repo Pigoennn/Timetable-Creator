@@ -1,12 +1,13 @@
-from collections import Counter
+from collections import Counter, deque
 from math import ceil
 from random import Random
 from typing import NamedTuple
 
 from src.config import SUBJECTS, Settings
-from src.classes.schedule import Schedule
+from src.classes.schedule import ONLINE, Schedule
 from src.classes.session import Session
 from src.classes.student import Student
+from src.classes.timetable_class import Class
 from src.classes.tutor import Availability, Tutor
 
 SURPLUS_STUDENTS_PER_ROUND = 50     # one round of surplus classes for every this many students
@@ -32,7 +33,7 @@ def relaxation_ladder(preferences: int) -> list[Rung]:
 
 
 class Solution:
-    """ Creates the classes for the timetable. Placing students into them comes in phase 4 """
+    """ Creates the classes for the timetable and places the students into them """
 
     settings: Settings
     rng: Random
@@ -68,7 +69,8 @@ class Solution:
     def execute(self) -> None:
         """ Build the timetable """
         self.create_classes()
-        # TODO(phase 4): place the students into the classes
+        self.place_students()
+        self.create_backup_classes()
 
     def create_classes(self) -> None:
         """ Create the classes, before any students are placed """
@@ -239,3 +241,144 @@ class Solution:
                 return year_level, best
 
         return None
+
+    # --- placing students -----------------------------------------------------
+
+    def place_students(self) -> None:
+        """ Place every student into the classes created so far, one subject at a time """
+        for subject in SUBJECTS:
+            self._place_subject(subject)
+
+    def _place_subject(self, subject: str) -> None:
+        """
+        Deferred acceptance: students ask for their favourite class first. A class that is over-full
+        keeps the students with the fewest other options, and bumps the rest to ask for their next choice.
+        Students who run out of choices are left for the backup classes.
+        """
+        students = [student for student in self.students if student.needs_class(subject)]
+        choices = {student: self._class_choices(student, subject) for student in students}
+
+        # classes would rather have students with fewer choices; ties are random so nobody is always bumped
+        tie_break = {student: self.rng.random() for student in students}
+        def bump_order(student: Student) -> tuple[int, float]:
+            return len(choices[student]), tie_break[student]
+
+        next_choice = {student: 0 for student in students}
+        asking = deque(students)
+
+        while asking:
+            student = asking.popleft()
+            if next_choice[student] == len(choices[student]):
+                continue        # out of choices
+
+            classroom = choices[student][next_choice[student]]
+            next_choice[student] += 1
+            classroom.add_student(student)
+
+            if len(classroom.students) > self.settings.class_size:
+                bumped = max(classroom.students, key=bump_order)
+                classroom.remove_student(bumped)
+                asking.append(bumped)
+
+    def _class_choices(self, student: Student, subject: str) -> list[Class]:
+        """
+        The classes a student could go to for a subject, best first:
+        - classes that don't take the student's only time left for their other subjects
+        - classes that match whether the student is online or in person
+        - classes that leave the most times free for their other subjects
+        - the order the student's availability is in
+        """
+        other_subjects = [other for other in SUBJECTS if other != subject and student.needs_class(other)]
+
+        def other_choices(classroom: Class) -> int:
+            return sum(1 for other in self._open_classes(student, other_subjects)
+                       if other.session != classroom.session)
+
+        def rank(classroom: Class) -> tuple[bool, bool, int, int]:
+            remaining = other_choices(classroom)
+            return (
+                bool(other_subjects) and remaining == 0,
+                (student.location == ONLINE) != classroom.online,
+                -remaining,
+                student.availability.index(classroom.session),
+            )
+
+        return sorted(self._open_classes(student, [subject]), key=rank)
+
+    def _open_classes(self, student: Student, subjects: list[str]) -> list[Class]:
+        """ Classes in these subjects for the student's year level, at times the student is free """
+        return [
+            classroom for classroom in self.schedule.classes
+            if classroom.subject in subjects
+            and classroom.year_level == student.year_level
+            and student.is_available(classroom.session)
+            and not student.is_booked(classroom.session)
+        ]
+
+    # --- backup classes -------------------------------------------------------
+
+    def create_backup_classes(self) -> None:
+        """
+        Create classes for the students who still need one, at the time most of them can make.
+        Empty classes are removed first so their tutors can teach these instead.
+        Anyone still without a class afterwards is marked unplaceable for that subject.
+        """
+        for classroom in [classroom for classroom in self.schedule.classes if not classroom.students]:
+            self.schedule.remove_class(classroom)
+
+        no_tutor: set[tuple[str, str, Session]] = set()     # (year level, subject, session) nobody can teach
+
+        while True:
+            demand = self._backup_demand(no_tutor)
+            if not demand:
+                break
+
+            (year_level, subject, session), _ = demand.most_common(1)[0]
+            tutor = self._backup_tutor(year_level, subject, session)
+            if tutor is None:
+                no_tutor.add((year_level, subject, session))
+                continue
+
+            classroom = self.schedule.create_class(tutor, session, subject, year_level)
+
+            # the students with the fewest other times get the seats first
+            waiting = [
+                student for student in self.students
+                if student.year_level == year_level and student.needs_class(subject)
+                and student.is_available(session) and not student.is_booked(session)
+            ]
+            waiting.sort(key=lambda student: sum(
+                1 for other in student.availability
+                if not student.is_booked(other) and (year_level, subject, other) not in no_tutor
+            ))
+            for student in waiting[:self.settings.class_size]:
+                classroom.add_student(student)
+
+        for student in self.students:
+            for subject in SUBJECTS:
+                if student.needs_class(subject):
+                    student.unplaceable.add(subject)
+
+    def _backup_demand(self, no_tutor: set[tuple[str, str, Session]]) -> Counter[tuple[str, str, Session]]:
+        """ How many students without a class could make each (year level, subject, session) """
+        return Counter(
+            (student.year_level, subject, session)
+            for student in self.students
+            for subject in SUBJECTS
+            if student.needs_class(subject)
+            for session in student.availability
+            if not student.is_booked(session) and (student.year_level, subject, session) not in no_tutor
+        )
+
+    def _backup_tutor(self, year_level: str, subject: str, session: Session) -> Tutor | None:
+        """ The tutor with the fewest classes who can teach this, preferring ones who want the year level more """
+        candidates = [
+            tutor for tutor in self.tutors
+            if tutor.subject == subject and year_level in tutor.year_levels
+            and self._can_use(tutor, session, (Availability.AVAILABLE, Availability.POTENTIAL))
+        ]
+        return min(candidates, default=None, key=lambda tutor: (
+            len(tutor.classes),
+            tutor.year_levels.index(year_level),
+            tutor.availability_at(session) != Availability.AVAILABLE,
+        ))

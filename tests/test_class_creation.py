@@ -7,9 +7,9 @@ from src.classes.schedule import ONLINE
 from src.classes.session import EARLY, LATE, Session
 from src.classes.solution import Solution, relaxation_ladder
 from src.classes.student import Student
-from src.classes.tutor import Availability, Tutor
+from src.classes.tutor import Availability
 from src.loader import load_students, load_tutor_sheet
-from tests.conftest import TEST1, TEST2
+from tests.conftest import TEST1, TEST2, make_tutor
 
 AVAILABLE = Availability.AVAILABLE
 POTENTIAL = Availability.POTENTIAL
@@ -17,11 +17,6 @@ POTENTIAL = Availability.POTENTIAL
 TUESDAY_EARLY = Session("Tuesday", EARLY)
 TUESDAY_LATE = Session("Tuesday", LATE)
 WEDNESDAY_EARLY = Session("Wednesday", EARLY)
-
-
-def make_tutor(name: str, subject: str, year_levels: list[str], availability: dict[Session, Availability],
-               maximum: int = 4, location: str = "In-Person") -> Tutor:
-    return Tutor(name, subject, year_levels, availability, maximum, location)
 
 
 def make_students(count: int, year_level: str, availability: list[Session]) -> list[Student]:

@@ -39,9 +39,10 @@ class Main:
         solution.setup(students, tutors, rooms)
         solution.execute()
 
-        # TODO: place students (phase 4), then show the loading and timetable screens (phase 6)
-        self.start_screen.set_info_label(f"Created {len(solution.schedule.classes)} classes "
-                                         f"for {len(students)} students")
+        # TODO: show the loading and timetable screens (phase 6)
+        missing = sum(1 for student in students if student.unplaceable)
+        self.start_screen.set_info_label(f"Created {len(solution.schedule.classes)} classes for {len(students)} "
+                                         f"students. {missing} students are missing a class")
 
 
 def main() -> None:
