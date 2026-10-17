@@ -6,6 +6,7 @@ from typing import NamedTuple
 from src.config import SUBJECTS, Settings
 from src.classes.schedule import ONLINE, Schedule
 from src.classes.session import Session
+from src.classes import tidy_up
 from src.classes.student import Student
 from src.classes.timetable_class import Class
 from src.classes.tutor import Availability, Tutor
@@ -70,7 +71,15 @@ class Solution:
         """ Build the timetable """
         self.create_classes()
         self.place_students()
-        self.create_backup_classes()
+        self.fill_gaps()
+        self.tidy_up()
+
+    def tidy_up(self) -> None:
+        """ Improve the finished timetable, then name the classes (see src/classes/tidy_up.py) """
+        tidy_up.use_free_rooms(self.schedule)
+        tidy_up.match_student_locations(self.schedule, self.settings.class_size)
+        tidy_up.keep_tutors_in_one_room(self.schedule)
+        tidy_up.name_classes(self.schedule, self.settings.student_days)
 
     def create_classes(self) -> None:
         """ Create the classes, before any students are placed """
@@ -317,16 +326,33 @@ class Solution:
 
     # --- backup classes -------------------------------------------------------
 
-    def create_backup_classes(self) -> None:
+    def fill_gaps(self) -> None:
+        """
+        Merge one-student classes into other classes and create backup classes, until neither helps.
+        A merge can free a tutor for a backup class, and backup classes can leave one-student classes to merge.
+        Anyone still without a class afterwards is marked unplaceable for that subject.
+        """
+        while True:
+            merged = tidy_up.merge_small_classes(self.schedule, self.settings.class_size)
+            created = self.create_backup_classes()
+            if not merged and not created:
+                break
+
+        for student in self.students:
+            for subject in SUBJECTS:
+                if student.needs_class(subject):
+                    student.unplaceable.add(subject)
+
+    def create_backup_classes(self) -> int:
         """
         Create classes for the students who still need one, at the time most of them can make.
-        Empty classes are removed first so their tutors can teach these instead.
-        Anyone still without a class afterwards is marked unplaceable for that subject.
+        Empty classes are removed first so their tutors can teach these instead. Returns how many were created.
         """
         for classroom in [classroom for classroom in self.schedule.classes if not classroom.students]:
             self.schedule.remove_class(classroom)
 
         no_tutor: set[tuple[str, str, Session]] = set()     # (year level, subject, session) nobody can teach
+        created = 0
 
         while True:
             demand = self._backup_demand(no_tutor)
@@ -340,6 +366,7 @@ class Solution:
                 continue
 
             classroom = self.schedule.create_class(tutor, session, subject, year_level)
+            created += 1
 
             # the students with the fewest other times get the seats first
             waiting = [
@@ -354,10 +381,7 @@ class Solution:
             for student in waiting[:self.settings.class_size]:
                 classroom.add_student(student)
 
-        for student in self.students:
-            for subject in SUBJECTS:
-                if student.needs_class(subject):
-                    student.unplaceable.add(subject)
+        return created
 
     def _backup_demand(self, no_tutor: set[tuple[str, str, Session]]) -> Counter[tuple[str, str, Session]]:
         """ How many students without a class could make each (year level, subject, session) """

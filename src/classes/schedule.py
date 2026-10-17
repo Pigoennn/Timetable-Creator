@@ -18,6 +18,18 @@ class Schedule:
     def classes_at(self, session: Session) -> list[Class]:
         return [classroom for classroom in self.classes if classroom.session == session]
 
+    def rooms_at(self, session: Session) -> list[Class | None]:
+        """ The class in each physical room at this session, in the order of the rooms (None if it's free) """
+        by_room = {classroom.room: classroom for classroom in self.classes_at(session) if not classroom.online}
+        return [by_room.get(room) for room in self.rooms]
+
+    def online_at(self, session: Session) -> list[Class]:
+        return [classroom for classroom in self.classes_at(session) if classroom.online]
+
+    def layout_at(self, session: Session) -> list[Class]:
+        """ The classes at this session in the order they're shown: physical rooms first, then online """
+        return [classroom for classroom in self.rooms_at(session) if classroom] + self.online_at(session)
+
     def free_room(self, session: Session) -> str | None:
         """ The first physical room with no class at this session, or None if they're all taken """
         taken = {classroom.room for classroom in self.classes_at(session)}

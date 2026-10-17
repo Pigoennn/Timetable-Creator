@@ -189,7 +189,7 @@ def test_backup_seats_go_to_students_with_fewer_options(settings):
     stuck = make_student("Ann", [TUESDAY_EARLY])
     solution = setup(replace(settings, class_size=1), [flexible, stuck], [tutor])
 
-    solution.create_backup_classes()
+    solution.fill_gaps()
 
     assert stuck.classes["Maths"] is not None
     assert flexible.unplaceable == {"Maths", "English"}
@@ -215,7 +215,7 @@ def test_unplaceable_when_no_tutor_is_free(settings):
     student = make_student("Ann", [TUESDAY_EARLY])
     solution = setup(settings, [student], [tutor])
 
-    solution.create_backup_classes()
+    solution.fill_gaps()
 
     assert solution.schedule.classes == []
     assert student.unplaceable == {"Maths", "English"}

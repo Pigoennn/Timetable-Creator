@@ -1,9 +1,12 @@
+import os
 import sys
+from datetime import datetime
 
 from PyQt6.QtWidgets import QApplication
 
 from src.classes.solution import Solution
 from src.config import Settings, load_settings
+from src.export import write_errors, write_timetable
 from src.loader import LoaderError, load_students, load_tutor_sheet, verify_files
 from src.resources import resource_path
 from src.screens.start import StartScreen
@@ -39,10 +42,15 @@ class Main:
         solution.setup(students, tutors, rooms)
         solution.execute()
 
-        # TODO: show the loading and timetable screens (phase 6)
+        # TODO: show the loading and timetable screens, and save the CSV from there (phase 6)
+        folder = os.path.dirname(student_csv)
+        write_timetable(os.path.join(folder, "timetable.csv"), solution.schedule, self.settings)
+        write_errors(os.path.join(folder, "Errors.txt"), students, tutors, datetime.now())
+
         missing = sum(1 for student in students if student.unplaceable)
         self.start_screen.set_info_label(f"Created {len(solution.schedule.classes)} classes for {len(students)} "
-                                         f"students. {missing} students are missing a class")
+                                         f"students. {missing} students are missing a class. "
+                                         f"Saved timetable.csv and Errors.txt next to the student file")
 
 
 def main() -> None:
